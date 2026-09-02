@@ -69,3 +69,13 @@ This project is licensed under the MIT License â€“ see the [LICENSE](LICENS
 
 ## Acknowledgments
 - ETPS for the LAB-HP 41000 manual and protocol documentation.
+## Screenshots
+<img width="1920" height="1080" alt="Screenshot (231)" src="https://github.com/user-attachments/assets/a961e6a1-2d25-4233-a25e-66ebae65b189" />
+<img width="1920" height="1080" alt="Screenshot (232)" src="https://github.com/user-attachments/assets/c2d33de7-628e-4d29-a62e-1656a30056f2" />
+<img width="1920" height="1080" alt="Screenshot (233)" src="https://github.com/user-attachments/assets/e7171287-ef1f-4918-aad0-07bee5573d8d" />
+<img width="1920" height="1080" alt="Screenshot (226)" src="https://github.com/user-attachments/assets/56b138ed-1394-4cf1-aa1c-9b400077bf07" />
+<img width="1920" height="1080" alt="Screenshot (227)" src="https://github.com/user-attachments/assets/8224774f-8a42-4b85-8524-cec4a542f56c" />
+<img width="1920" height="1080" alt="Screenshot (228)" src="https://github.com/user-attachments/assets/3205a07d-8b24-4fa1-9a3f-3b30f4203287" />
+<img width="1920" height="1080" alt="Screenshot (229)" src="https://github.com/user-attachments/assets/0f658bc5-e499-46af-abc2-25c56860c228" />
+<img width="1920" height="1080" alt="Screenshot (230)" src="https://github.com/user-attachments/assets/ee3266af-ccda-498c-a556-cc36eab2b031" />
+
