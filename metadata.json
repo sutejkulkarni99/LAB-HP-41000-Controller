@@ -1,0 +1,6 @@
+{
+  "name": "LAB-HP DC Power Supply Controller",
+  "description": "Professional high-power DC power supply controller, high-speed telemetry logger, full-session historical waveform plotter, and multi-format export utility.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
