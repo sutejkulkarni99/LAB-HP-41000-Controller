@@ -38,6 +38,7 @@ import queue
 import re
 import csv
 import math
+import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -51,7 +52,8 @@ try:
         QDoubleSpinBox, QPushButton, QCheckBox, QTextEdit, QFileDialog,
         QMessageBox, QSplitter, QFrame, QProgressBar, QSizePolicy,
         QStatusBar, QComboBox, QCompleter, QToolButton, QStyle, QDialog,
-        QDialogButtonBox, QFormLayout, QSlider
+        QDialogButtonBox, QFormLayout, QSlider, QListWidget, QListWidgetItem,
+        QAbstractItemView, QRadioButton, QButtonGroup
     )
     from PyQt6.QtCore import (
         Qt, QTimer, QThread, pyqtSignal, QSettings, QEvent, QObject,
@@ -98,26 +100,29 @@ except ImportError:
 
 
 # =============================================================================
-# MODERN INDUSTRIAL DARK STYLESHEET (Clean, Vector, High-Legibility)
+# MODERN DARK STYLESHEET: "SLATE CONTROL" (Atmos, Media.io, UX Misfit, Toptal)
+# #0F1117 (bg), #1A1D24 (cards), #262B33 (hover), #2F3540 (borders),
+# #E8EDF2 (primary text), #8B95A5 (secondary)
+# Accents: #4A9BDB (V), #3FB58C (I), #D4A04A (P), #9B7FD4 (R)
 # =============================================================================
 MODERN_DARK_STYLESHEET = """
 QMainWindow, QWidget {
-    background-color: #121316;
-    color: #d1d5db;
+    background-color: #0F1117;
+    color: #E8EDF2;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 10pt;
 }
 
-/* Containers & Cards */
+/* Containers & Cards (Elevation Depth Level 1) */
 QGroupBox {
-    background-color: #181a1f;
-    border: 1px solid #272a31;
+    background-color: #1A1D24;
+    border: 1px solid #2F3540;
     border-radius: 8px;
     margin-top: 14px;
     padding: 14px 10px 10px 10px;
     font-weight: 600;
     font-size: 9.5pt;
-    color: #94a3b8;
+    color: #8B95A5;
 }
 
 QGroupBox::title {
@@ -125,200 +130,202 @@ QGroupBox::title {
     subcontrol-position: top left;
     left: 12px;
     padding: 0 6px;
-    background-color: #181a1f;
+    background-color: #1A1D24;
     border-radius: 3px;
+    color: #E8EDF2;
 }
 
-/* Inputs & Spinboxes */
-QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {
-    background-color: #1f2228;
-    border: 1px solid #333842;
+/* Inputs & Spinboxes (Elevation Level 2) */
+QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QListWidget {
+    background-color: #20252E;
+    border: 1px solid #2F3540;
     border-radius: 5px;
     padding: 5px 8px;
-    color: #f3f4f6;
+    color: #E8EDF2;
     font-size: 10pt;
-    selection-background-color: #2563eb;
+    selection-background-color: #4A9BDB;
+    selection-color: #0F1117;
 }
 
-QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
-    border: 1px solid #3b82f6;
-    background-color: #22262d;
+QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus, QListWidget:focus {
+    border: 1px solid #4A9BDB;
+    background-color: #262B33;
 }
 
-QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QComboBox:disabled {
-    background-color: #16181c;
-    border-color: #262930;
-    color: #525866;
+QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QComboBox:disabled, QListWidget:disabled {
+    background-color: #16181F;
+    border-color: #262A33;
+    color: #555E6D;
 }
 
 /* Modern Push Buttons */
 QPushButton {
-    background-color: #252830;
-    border: 1px solid #373c47;
+    background-color: #242933;
+    border: 1px solid #2F3540;
     border-radius: 6px;
     padding: 6px 14px;
-    color: #e5e7eb;
+    color: #E8EDF2;
     font-weight: 600;
     font-size: 9.5pt;
 }
 
 QPushButton:hover {
-    background-color: #2f343f;
-    border-color: #4b5262;
-    color: #ffffff;
+    background-color: #262B33;
+    border-color: #4A9BDB;
+    color: #FFFFFF;
 }
 
 QPushButton:pressed {
-    background-color: #1c1e24;
-    border-color: #2c3038;
+    background-color: #1A1D24;
+    border-color: #242933;
 }
 
 QPushButton:disabled {
-    background-color: #16181d;
-    border-color: #24272e;
-    color: #4b5160;
+    background-color: #16181F;
+    border-color: #262A33;
+    color: #555E6D;
 }
 
 /* Button Variants */
 QPushButton#primary {
-    background-color: #1d4ed8;
-    border: 1px solid #2563eb;
-    color: #ffffff;
+    background-color: #2563EB;
+    border: 1px solid #3B82F6;
+    color: #FFFFFF;
 }
 QPushButton#primary:hover {
-    background-color: #2563eb;
-    border-color: #3b82f6;
+    background-color: #1D4ED8;
+    border-color: #60A5FA;
 }
 
 QPushButton#success {
-    background-color: #15803d;
-    border: 1px solid #16a34a;
-    color: #ffffff;
+    background-color: #15803D;
+    border: 1px solid #3FB58C;
+    color: #FFFFFF;
 }
 QPushButton#success:hover {
-    background-color: #16a34a;
-    border-color: #22c55e;
+    background-color: #166534;
+    border-color: #4ADE80;
 }
 
 QPushButton#danger {
-    background-color: #b91c1c;
-    border: 1px solid #dc2626;
-    color: #ffffff;
+    background-color: #991B1B;
+    border: 1px solid #DC2626;
+    color: #FFFFFF;
 }
 QPushButton#danger:hover {
-    background-color: #dc2626;
-    border-color: #ef4444;
+    background-color: #7F1D1D;
+    border-color: #EF4444;
 }
 
 /* Tool Buttons */
 QToolButton {
-    background-color: #22252c;
-    border: 1px solid #333842;
+    background-color: #242933;
+    border: 1px solid #2F3540;
     border-radius: 5px;
     padding: 5px;
-    color: #e2e8f0;
+    color: #E8EDF2;
 }
 QToolButton:hover {
-    background-color: #2b2f38;
-    border-color: #474f5d;
+    background-color: #262B33;
+    border-color: #4A9BDB;
 }
 QToolButton:pressed {
-    background-color: #1a1c21;
+    background-color: #1A1D24;
 }
 QToolButton:disabled {
-    background-color: #16181d;
-    border-color: #24272e;
-    color: #4b5160;
+    background-color: #16181F;
+    border-color: #262A33;
+    color: #555E6D;
 }
 
 /* Industrial E-Stop Button */
 QPushButton#emergency {
     background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
-                                      stop:0 #ef4444, stop:0.7 #b91c1c, stop:1 #7f1d1d);
-    border: 3px solid #f59e0b;
+                                      stop:0 #DC2626, stop:0.7 #991B1B, stop:1 #450A0A);
+    border: 3px solid #D4A04A;
     border-radius: 42px;
     font-size: 11pt;
     font-weight: 800;
     letter-spacing: 0.5px;
-    color: #ffffff;
+    color: #FFFFFF;
     padding: 0;
 }
 QPushButton#emergency:hover {
     background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
-                                      stop:0 #f87171, stop:0.7 #dc2626, stop:1 #991b1b);
-    border-color: #fbbf24;
+                                      stop:0 #EF4444, stop:0.7 #B91C1C, stop:1 #7F1D1D);
+    border-color: #FBBF24;
 }
 QPushButton#emergency:disabled {
-    background-color: #2c2e35;
-    border-color: #3e424c;
-    color: #646a78;
+    background-color: #242933;
+    border-color: #2F3540;
+    color: #555E6D;
 }
 QPushButton#emergency[latched="true"] {
-    background-color: #450a0a;
-    border: 3px solid #ef4444;
-    color: #fca5a5;
+    background-color: #450A0A;
+    border: 3px solid #DC2626;
+    color: #FCA5A5;
 }
 
 /* Mode Switch Button */
 QPushButton#mode_remote {
-    background-color: #0369a1;
-    border: 1px solid #0284c7;
-    color: #f0f9ff;
+    background-color: #1E3A5F;
+    border: 1px solid #4A9BDB;
+    color: #E8EDF2;
     font-weight: bold;
     border-radius: 6px;
     padding: 6px 14px;
 }
 QPushButton#mode_remote:hover {
-    background-color: #0284c7;
-    border-color: #38bdf8;
+    background-color: #2563EB;
+    border-color: #60A5FA;
 }
 
 QPushButton#mode_local {
-    background-color: #b45309;
-    border: 1px solid #d97706;
-    color: #fffbeb;
+    background-color: #78350F;
+    border: 1px solid #D4A04A;
+    color: #FEF3C7;
     font-weight: bold;
     border-radius: 6px;
     padding: 6px 14px;
 }
 QPushButton#mode_local:hover {
-    background-color: #d97706;
-    border-color: #fbbf24;
+    background-color: #92400E;
+    border-color: #FBBF24;
 }
 
 /* Tabs */
 QTabWidget::pane {
-    border: 1px solid #272a31;
-    background-color: #14161a;
+    border: 1px solid #2F3540;
+    background-color: #1A1D24;
     border-radius: 6px;
     top: -1px;
 }
 QTabBar::tab {
-    background-color: #1b1d22;
-    border: 1px solid #272a31;
+    background-color: #20252E;
+    border: 1px solid #2F3540;
     padding: 9px 20px;
     margin-right: 4px;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     font-weight: 600;
-    color: #94a3b8;
+    color: #8B95A5;
 }
 QTabBar::tab:selected {
-    background-color: #14161a;
-    border-bottom: 2px solid #3b82f6;
-    color: #60a5fa;
+    background-color: #1A1D24;
+    border-bottom: 2px solid #4A9BDB;
+    color: #4A9BDB;
 }
 QTabBar::tab:hover:!selected {
-    background-color: #23262d;
-    color: #e2e8f0;
+    background-color: #262B33;
+    color: #E8EDF2;
 }
 
 /* Text Terminal & Logs */
 QTextEdit {
-    background-color: #0f1013;
-    border: 1px solid #272a31;
+    background-color: #14171F;
+    border: 1px solid #2F3540;
     border-radius: 6px;
-    color: #d1d5db;
+    color: #E8EDF2;
     font-family: "JetBrains Mono", "SF Mono", "Consolas", "Courier New", monospace;
     font-size: 9pt;
     line-height: 1.4;
@@ -326,7 +333,7 @@ QTextEdit {
 
 /* Checkboxes & Sliders */
 QCheckBox {
-    color: #d1d5db;
+    color: #E8EDF2;
     font-size: 9.5pt;
     spacing: 7px;
 }
@@ -334,73 +341,71 @@ QCheckBox::indicator {
     width: 16px;
     height: 16px;
     border-radius: 4px;
-    border: 1px solid #3c424e;
-    background-color: #1f2228;
+    border: 1px solid #2F3540;
+    background-color: #20252E;
 }
 QCheckBox::indicator:checked {
-    background-color: #2563eb;
-    border-color: #3b82f6;
+    background-color: #4A9BDB;
+    border-color: #4A9BDB;
 }
 
 /* Status Bar */
 QStatusBar {
-    background-color: #181a1f;
-    border-top: 1px solid #272a31;
-    color: #94a3b8;
+    background-color: #1A1D24;
+    border-top: 1px solid #2F3540;
+    color: #8B95A5;
     font-size: 9pt;
 }
 
 /* Sliders */
 QSlider::groove:horizontal {
     height: 5px;
-    background: #272a31;
+    background: #2F3540;
     border-radius: 2px;
 }
 QSlider::sub-page:horizontal {
-    background: #3b82f6;
+    background: #4A9BDB;
     border-radius: 2px;
 }
 QSlider::handle:horizontal {
-    background: #e2e8f0;
-    border: 1px solid #94a3b8;
+    background: #E8EDF2;
+    border: 1px solid #8B95A5;
     width: 14px;
     margin-top: -5px;
     margin-bottom: -5px;
     border-radius: 7px;
 }
 QSlider::handle:horizontal:hover {
-    background: #ffffff;
-    border-color: #38bdf8;
+    background: #FFFFFF;
+    border-color: #4A9BDB;
 }
 
 /* Dialogs */
 QDialog {
-    background-color: #121316;
-    color: #f1f5f9;
+    background-color: #0F1117;
+    color: #E8EDF2;
 }
 """
 
 
 # =============================================================================
-# MODERN LABORATORY LIGHT THEME STYLESHEET
-# Derived from Atmos, Media.io, UX Misfit, and Toptal Design Guidelines:
-# - Cool Slate 50 background (#f8fafc) eliminates halation and reduces eye fatigue
-# - Pure White elevated cards (#ffffff) create crisp physical depth without muddy shadows
-# - High-contrast Slate 900 typography (#0f172a) ensures WCAG AAA legibility (> 12:1)
-# - Balanced accents: Sky #0284c7, Emerald #16a34a, Amber #d97706, Violet #9333ea
+# MODERN LIGHT THEME STYLESHEET: "CLEAN LABORATORY"
+# #F8FAFC (bg), #FFFFFF (cards), #E2E8F0 (borders), #F1F5F9 (hover),
+# #0F172A (primary text), #475569 (secondary)
+# Accents: #0284C7 (V), #16A34A (I), #D97706 (P), #9333EA (R)
 # =============================================================================
 MODERN_LIGHT_STYLESHEET = """
 QMainWindow, QWidget {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #F8FAFC;
+    color: #0F172A;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 10pt;
 }
 
 /* Containers & Cards */
 QGroupBox {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
     border-radius: 8px;
     margin-top: 14px;
     padding: 14px 10px 10px 10px;
@@ -414,203 +419,202 @@ QGroupBox::title {
     subcontrol-position: top left;
     left: 12px;
     padding: 0 6px;
-    background-color: #ffffff;
+    background-color: #FFFFFF;
     border-radius: 3px;
-    color: #1e293b;
+    color: #0F172A;
 }
 
 /* Inputs & Spinboxes */
-QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
+QLineEdit, QDoubleSpinBox, QSpinBox, QComboBox, QListWidget {
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
     border-radius: 5px;
     padding: 5px 8px;
-    color: #0f172a;
+    color: #0F172A;
     font-size: 10pt;
-    selection-background-color: #3b82f6;
-    selection-color: #ffffff;
+    selection-background-color: #0284C7;
+    selection-color: #FFFFFF;
 }
 
-QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus {
-    border: 1px solid #2563eb;
-    background-color: #ffffff;
+QLineEdit:focus, QDoubleSpinBox:focus, QSpinBox:focus, QComboBox:focus, QListWidget:focus {
+    border: 1px solid #0284C7;
+    background-color: #FFFFFF;
 }
 
-QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QComboBox:disabled {
-    background-color: #f1f5f9;
-    border-color: #e2e8f0;
-    color: #94a3b8;
+QLineEdit:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled, QComboBox:disabled, QListWidget:disabled {
+    background-color: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #94A3B8;
 }
 
 /* Modern Push Buttons */
 QPushButton {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
     border-radius: 6px;
     padding: 6px 14px;
-    color: #1e293b;
+    color: #0F172A;
     font-weight: 600;
     font-size: 9.5pt;
 }
 
 QPushButton:hover {
-    background-color: #f1f5f9;
-    border-color: #94a3b8;
-    color: #0f172a;
+    background-color: #F1F5F9;
+    border-color: #0284C7;
+    color: #0F172A;
 }
 
 QPushButton:pressed {
-    background-color: #e2e8f0;
-    border-color: #64748b;
+    background-color: #E2E8F0;
+    border-color: #94A3B8;
 }
 
 QPushButton:disabled {
-    background-color: #f8fafc;
-    border-color: #e2e8f0;
-    color: #94a3b8;
+    background-color: #F8FAFC;
+    border-color: #E2E8F0;
+    color: #94A3B8;
 }
 
 /* Button Variants */
 QPushButton#primary {
-    background-color: #2563eb;
-    border: 1px solid #1d4ed8;
-    color: #ffffff;
+    background-color: #0284C7;
+    border: 1px solid #0369A1;
+    color: #FFFFFF;
 }
 QPushButton#primary:hover {
-    background-color: #1d4ed8;
-    border-color: #1e40af;
+    background-color: #0369A1;
+    border-color: #075985;
 }
 
 QPushButton#success {
-    background-color: #16a34a;
-    border: 1px solid #15803d;
-    color: #ffffff;
+    background-color: #16A34A;
+    border: 1px solid #15803D;
+    color: #FFFFFF;
 }
 QPushButton#success:hover {
-    background-color: #15803d;
+    background-color: #15803D;
     border-color: #166534;
 }
 
 QPushButton#danger {
-    background-color: #dc2626;
-    border: 1px solid #b91c1c;
-    color: #ffffff;
+    background-color: #DC2626;
+    border: 1px solid #B91C1C;
+    color: #FFFFFF;
 }
 QPushButton#danger:hover {
-    background-color: #b91c1c;
-    border-color: #991b1b;
+    background-color: #B91C1C;
+    border-color: #991B1B;
 }
 
 /* Tool Buttons */
 QToolButton {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
     border-radius: 5px;
     padding: 5px;
-    color: #334155;
+    color: #0F172A;
 }
 QToolButton:hover {
-    background-color: #f1f5f9;
-    border-color: #94a3b8;
-    color: #0f172a;
+    background-color: #F1F5F9;
+    border-color: #0284C7;
 }
 QToolButton:pressed {
-    background-color: #e2e8f0;
+    background-color: #E2E8F0;
 }
 QToolButton:disabled {
-    background-color: #f8fafc;
-    border-color: #e2e8f0;
-    color: #94a3b8;
+    background-color: #F8FAFC;
+    border-color: #E2E8F0;
+    color: #94A3B8;
 }
 
 /* Industrial E-Stop Button */
 QPushButton#emergency {
     background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
-                                      stop:0 #ef4444, stop:0.7 #dc2626, stop:1 #991b1b);
-    border: 3px solid #d97706;
+                                      stop:0 #DC2626, stop:0.7 #B91C1C, stop:1 #7F1D1D);
+    border: 3px solid #D97706;
     border-radius: 42px;
     font-size: 11pt;
     font-weight: 800;
     letter-spacing: 0.5px;
-    color: #ffffff;
+    color: #FFFFFF;
     padding: 0;
 }
 QPushButton#emergency:hover {
     background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
-                                      stop:0 #f87171, stop:0.7 #ef4444, stop:1 #b91c1c);
-    border-color: #b45309;
+                                      stop:0 #EF4444, stop:0.7 #DC2626, stop:1 #991B1B);
+    border-color: #F59E0B;
 }
 QPushButton#emergency:disabled {
-    background-color: #e2e8f0;
-    border-color: #cbd5e1;
-    color: #94a3b8;
+    background-color: #E2E8F0;
+    border-color: #CBD5E1;
+    color: #94A3B8;
 }
 QPushButton#emergency[latched="true"] {
-    background-color: #991b1b;
-    border: 3px solid #ef4444;
-    color: #fef2f2;
+    background-color: #7F1D1D;
+    border: 3px solid #DC2626;
+    color: #FEE2E2;
 }
 
 /* Mode Switch Button */
 QPushButton#mode_remote {
-    background-color: #0284c7;
-    border: 1px solid #0369a1;
-    color: #ffffff;
+    background-color: #0284C7;
+    border: 1px solid #0369A1;
+    color: #FFFFFF;
     font-weight: bold;
     border-radius: 6px;
     padding: 6px 14px;
 }
 QPushButton#mode_remote:hover {
-    background-color: #0369a1;
+    background-color: #0369A1;
     border-color: #075985;
 }
 
 QPushButton#mode_local {
-    background-color: #d97706;
-    border: 1px solid #b45309;
-    color: #ffffff;
+    background-color: #D97706;
+    border: 1px solid #B45309;
+    color: #FFFFFF;
     font-weight: bold;
     border-radius: 6px;
     padding: 6px 14px;
 }
 QPushButton#mode_local:hover {
-    background-color: #b45309;
-    border-color: #92400e;
+    background-color: #B45309;
+    border-color: #92400E;
 }
 
 /* Tabs */
 QTabWidget::pane {
-    border: 1px solid #e2e8f0;
-    background-color: #ffffff;
+    border: 1px solid #E2E8F0;
+    background-color: #FFFFFF;
     border-radius: 6px;
     top: -1px;
 }
 QTabBar::tab {
-    background-color: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background-color: #F1F5F9;
+    border: 1px solid #E2E8F0;
     padding: 9px 20px;
     margin-right: 4px;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     font-weight: 600;
-    color: #64748b;
+    color: #475569;
 }
 QTabBar::tab:selected {
-    background-color: #ffffff;
-    border-bottom: 2px solid #2563eb;
-    color: #2563eb;
+    background-color: #FFFFFF;
+    border-bottom: 2px solid #0284C7;
+    color: #0284C7;
 }
 QTabBar::tab:hover:!selected {
-    background-color: #e2e8f0;
-    color: #0f172a;
+    background-color: #E2E8F0;
+    color: #0F172A;
 }
 
 /* Text Terminal & Logs */
 QTextEdit {
-    background-color: #ffffff;
-    border: 1px solid #cbd5e1;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
     border-radius: 6px;
-    color: #0f172a;
+    color: #0F172A;
     font-family: "JetBrains Mono", "SF Mono", "Consolas", "Courier New", monospace;
     font-size: 9pt;
     line-height: 1.4;
@@ -618,7 +622,7 @@ QTextEdit {
 
 /* Checkboxes & Sliders */
 QCheckBox {
-    color: #1e293b;
+    color: #0F172A;
     font-size: 9.5pt;
     spacing: 7px;
 }
@@ -626,18 +630,18 @@ QCheckBox::indicator {
     width: 16px;
     height: 16px;
     border-radius: 4px;
-    border: 1px solid #94a3b8;
-    background-color: #ffffff;
+    border: 1px solid #CBD5E1;
+    background-color: #FFFFFF;
 }
 QCheckBox::indicator:checked {
-    background-color: #2563eb;
-    border-color: #1d4ed8;
+    background-color: #0284C7;
+    border-color: #0284C7;
 }
 
 /* Status Bar */
 QStatusBar {
-    background-color: #f1f5f9;
-    border-top: 1px solid #e2e8f0;
+    background-color: #F1F5F9;
+    border-top: 1px solid #E2E8F0;
     color: #475569;
     font-size: 9pt;
 }
@@ -645,30 +649,30 @@ QStatusBar {
 /* Sliders */
 QSlider::groove:horizontal {
     height: 5px;
-    background: #e2e8f0;
+    background: #E2E8F0;
     border-radius: 2px;
 }
 QSlider::sub-page:horizontal {
-    background: #2563eb;
+    background: #0284C7;
     border-radius: 2px;
 }
 QSlider::handle:horizontal {
-    background: #ffffff;
-    border: 1px solid #94a3b8;
+    background: #FFFFFF;
+    border: 1px solid #94A3B8;
     width: 14px;
     margin-top: -5px;
     margin-bottom: -5px;
     border-radius: 7px;
 }
 QSlider::handle:horizontal:hover {
-    background: #f1f5f9;
-    border-color: #2563eb;
+    background: #F8FAFC;
+    border-color: #0284C7;
 }
 
 /* Dialogs */
 QDialog {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #F8FAFC;
+    color: #0F172A;
 }
 """
 
@@ -680,7 +684,7 @@ class ModernMetricCard(QFrame):
     """
     Sleek, high-contrast vector metric readout card.
     Displays Primary Value, Unit, Target Setpoint, and Deviation (Delta).
-    Supports dynamic dark and light mode themes.
+    Supports dynamic dark (Slate Control) and light (Clean Laboratory) themes.
     """
 
     def __init__(self, title: str, unit: str, color_hex: str, parent=None):
@@ -694,12 +698,13 @@ class ModernMetricCard(QFrame):
         self.setObjectName("metric_card")
         self.setStyleSheet(f"""
             QFrame#metric_card {{
-                background-color: #171922;
-                border: 1px solid #282c37;
+                background-color: #1A1D24;
+                border: 1px solid #2F3540;
                 border-radius: 8px;
             }}
             QFrame#metric_card:hover {{
-                border: 1px solid #38bdf8;
+                background-color: #262B33;
+                border: 1px solid {self.accent_color};
             }}
         """)
 
@@ -711,7 +716,7 @@ class ModernMetricCard(QFrame):
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
         self.lbl_title = QLabel(title.upper())
-        self.lbl_title.setStyleSheet("font-size: 8.5pt; font-weight: 700; letter-spacing: 0.8px; color: #828b99;")
+        self.lbl_title.setStyleSheet("font-size: 8.5pt; font-weight: 700; letter-spacing: 0.8px; color: #8B95A5;")
         header_row.addWidget(self.lbl_title)
 
         header_row.addStretch()
@@ -727,7 +732,7 @@ class ModernMetricCard(QFrame):
             font-family: 'JetBrains Mono', 'SF Pro Display', 'Consolas', monospace;
             font-size: 26pt;
             font-weight: 700;
-            color: #ffffff;
+            color: #E8EDF2;
             margin: 2px 0;
         """)
         self.lbl_value.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -737,58 +742,65 @@ class ModernMetricCard(QFrame):
         sub_row = QHBoxLayout()
         sub_row.setContentsMargins(0, 0, 0, 0)
         self.lbl_setpoint = QLabel("Set: 0.00")
-        self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #94a3b8;")
+        self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #8B95A5;")
         sub_row.addWidget(self.lbl_setpoint)
 
         sub_row.addStretch()
 
         self.lbl_delta = QLabel("Δ 0.00")
-        self.lbl_delta.setStyleSheet("font-size: 9pt; font-family: monospace; color: #64748b;")
+        self.lbl_delta.setStyleSheet("font-size: 9pt; font-family: monospace; color: #8B95A5;")
         sub_row.addWidget(self.lbl_delta)
         layout.addLayout(sub_row)
 
-    def set_theme(self, is_dark: bool):
-        """Adapt metric card styling to active application theme (Atmos/Media.io/UX Misfit)."""
+    def set_theme(self, is_dark: bool, accent_color: str = None):
+        """Adapt metric card styling to Slate Control or Clean Laboratory."""
+        if accent_color:
+            self.accent_color = accent_color
+
         if is_dark:
-            self.setStyleSheet("""
-                QFrame#metric_card {
-                    background-color: #171922;
-                    border: 1px solid #282c37;
+            self.setStyleSheet(f"""
+                QFrame#metric_card {{
+                    background-color: #1A1D24;
+                    border: 1px solid #2F3540;
                     border-radius: 8px;
-                }
-                QFrame#metric_card:hover {
-                    border: 1px solid #38bdf8;
-                }
+                }}
+                QFrame#metric_card:hover {{
+                    background-color: #262B33;
+                    border: 1px solid {self.accent_color};
+                }}
             """)
-            self.lbl_title.setStyleSheet("font-size: 8.5pt; font-weight: 700; letter-spacing: 0.8px; color: #94a3b8;")
+            self.lbl_title.setStyleSheet("font-size: 8.5pt; font-weight: 700; letter-spacing: 0.8px; color: #8B95A5;")
+            self.lbl_unit.setStyleSheet(f"font-size: 8.5pt; font-weight: 700; color: {self.accent_color};")
             self.lbl_value.setStyleSheet("""
                 font-family: 'JetBrains Mono', 'SF Pro Display', 'Consolas', monospace;
                 font-size: 26pt;
                 font-weight: 700;
-                color: #f1f5f9;
+                color: #E8EDF2;
                 margin: 2px 0;
             """)
-            self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #94a3b8;")
+            self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #8B95A5;")
         else:
-            self.setStyleSheet("""
-                QFrame#metric_card {
-                    background-color: #ffffff;
-                    border: 1px solid #e2e8f0;
+            self.setStyleSheet(f"""
+                QFrame#metric_card {{
+                    background-color: #FFFFFF;
+                    border: 1px solid #E2E8F0;
                     border-radius: 8px;
-                }
-                QFrame#metric_card:hover {
-                    border: 1px solid #2563eb;
-                }
+                }}
+                QFrame#metric_card:hover {{
+                    background-color: #F1F5F9;
+                    border: 1px solid {self.accent_color};
+                }}
             """)
             self.lbl_title.setStyleSheet("font-size: 8.5pt; font-weight: 700; letter-spacing: 0.8px; color: #475569;")
+            self.lbl_unit.setStyleSheet(f"font-size: 8.5pt; font-weight: 700; color: {self.accent_color};")
             self.lbl_value.setStyleSheet("""
                 font-family: 'JetBrains Mono', 'SF Pro Display', 'Consolas', monospace;
                 font-size: 26pt;
                 font-weight: 700;
-                color: #0f172a;
+                color: #0F172A;
                 margin: 2px 0;
             """)
-            self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #64748b;")
+            self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #475569;")
 
     def update_measurement(self, actual: float, decimals: int = 2):
         self.actual_val = actual
@@ -946,28 +958,506 @@ def get_matplotlib_plot_kwargs(color_hex: str, line_width: float, style_str: str
         kw["markerfacecolor"] = color_hex
     return kw
 
-class PlotPresentationDialog(QDialog):
+# =============================================================================
+# SMART LAYOUT, METADATA COMPANION & LATEX EXPORT UTILITIES
+# =============================================================================
+def calculate_lowest_density_quadrant(t_data: list, traces_dict: dict) -> tuple:
     """
-    Customization dialog for waveform presentation and export options:
-    - X-Axis Label and Units
-    - Y-Axis Label and Units
-    - Plot Title, Visibility, and Alignment
-    - Legend Visibility & Positioning (to avoid obstructing waveforms)
-    - Trace Line Widths & Grid Styles
-    - Export Color Theme & DPI Quality
+    Analyzes spatial distribution of waveform points to locate the quadrant with the
+    least visual occlusion for automatic legend placement.
+    Returns: (mpl_loc, pyqtgraph_loc)
     """
+    if not t_data or not traces_dict:
+        return "upper right", "Top-Right"
 
-    def __init__(self, settings: dict, parent=None):
+    t_min = min(t_data)
+    t_max = max(t_data)
+    t_span = (t_max - t_min) or 1.0
+
+    all_y = []
+    for k, y_series in traces_dict.items():
+        if not y_series:
+            continue
+        for idx in range(min(len(t_data), len(y_series))):
+            y_val = y_series[idx]
+            if y_val is not None and not math.isnan(y_val) and not math.isinf(y_val):
+                all_y.append(y_val)
+
+    if not all_y:
+        return "upper right", "Top-Right"
+
+    y_min = min(all_y)
+    y_max = max(all_y)
+    y_span = (y_max - y_min) or 1.0
+
+    counts = {
+        ("upper right", "Top-Right"): 0,
+        ("upper left", "Top-Left"): 0,
+        ("lower right", "Bottom-Right"): 0,
+        ("lower left", "Bottom-Left"): 0,
+    }
+
+    step = max(1, len(t_data) // 500)
+    for k, y_series in traces_dict.items():
+        if not y_series:
+            continue
+        n = min(len(t_data), len(y_series))
+        for idx in range(0, n, step):
+            t_val = t_data[idx]
+            y_val = y_series[idx]
+            if y_val is None or math.isnan(y_val) or math.isinf(y_val):
+                continue
+            norm_x = (t_val - t_min) / t_span
+            norm_y = (y_val - y_min) / y_span
+
+            is_top = (norm_y >= 0.5)
+            is_right = (norm_x >= 0.5)
+
+            if is_top and is_right:
+                counts[("upper right", "Top-Right")] += 1
+            elif is_top and not is_right:
+                counts[("upper left", "Top-Left")] += 1
+            elif not is_top and is_right:
+                counts[("lower right", "Bottom-Right")] += 1
+            else:
+                counts[("lower left", "Bottom-Left")] += 1
+
+    best_pair = min(counts.keys(), key=lambda k: counts[k])
+    return best_pair
+
+
+def calculate_percentile_limits(traces_dict: dict, p_low=5.0, p_high=95.0, margin=0.08):
+    """
+    Computes 5th to 95th percentile bounds across active traces to suppress inrush
+    transient spikes from flattening the steady-state waveform.
+    """
+    all_vals = []
+    for k, series in traces_dict.items():
+        if not series:
+            continue
+        for v in series:
+            if v is not None and not math.isnan(v) and not math.isinf(v):
+                all_vals.append(float(v))
+
+    if len(all_vals) < 10:
+        return None
+
+    try:
+        if HAVE_NUMPY:
+            arr = np.array(all_vals)
+            y_low = float(np.percentile(arr, p_low))
+            y_high = float(np.percentile(arr, p_high))
+        else:
+            sorted_vals = sorted(all_vals)
+            n = len(sorted_vals)
+            idx_low = int(n * (p_low / 100.0))
+            idx_high = min(n - 1, int(n * (p_high / 100.0)))
+            y_low = sorted_vals[idx_low]
+            y_high = sorted_vals[idx_high]
+
+        span = (y_high - y_low)
+        if span <= 1e-6:
+            span = max(abs(y_high) * 0.1, 1.0)
+        return (y_low - margin * span, y_high + margin * span)
+    except Exception:
+        return None
+
+
+def generate_companion_metadata(export_filepath: str, plot_settings: dict, data_dict: dict, stats_dict: dict = None) -> str:
+    """
+    Writes a companion .meta JSON file alongside an exported plot containing full provenance,
+    telemetry statistical moments, acquisition timestamps, and publication configuration.
+    """
+    meta_path = str(Path(export_filepath).with_suffix(Path(export_filepath).suffix + ".meta"))
+    t = data_dict.get('t', [])
+    duration_s = (t[-1] - t[0]) if (t and len(t) > 1) else 0.0
+
+    channels_meta = {}
+    label_map = {'v': 'Voltage (V)', 'i': 'Current (A)', 'p': 'Power (W)', 'r': 'Resistance (Ω)'}
+    for ch_key, ch_label in label_map.items():
+        vals = [v for v in data_dict.get(ch_key, []) if v is not None and not math.isnan(v) and not math.isinf(v)]
+        if vals:
+            channels_meta[ch_label] = {
+                "count": len(vals),
+                "min": round(min(vals), 4),
+                "max": round(max(vals), 4),
+                "mean": round(sum(vals) / len(vals), 4),
+            }
+
+    meta_doc = {
+        "provenance": {
+            "instrument": "ETPS LAB-HP 41000 DC Power Source (4 kW, 1000 V, 7 A)",
+            "controller_software": "LAB-HP Controller v5 Next-Gen Edition",
+            "export_timestamp_iso": datetime.datetime.now().isoformat(),
+            "target_artifact": Path(export_filepath).name,
+            "publication_preset": plot_settings.get("publication_preset", "Custom"),
+            "watermark_footnote": plot_settings.get("watermark_text", "ETPS LAB-HP 41000 Telemetry"),
+        },
+        "session_summary": {
+            "duration_seconds": round(duration_s, 3),
+            "sample_count": len(t),
+            "channels_recorded": list(channels_meta.keys()),
+        },
+        "channel_statistics": channels_meta,
+        "presentation_settings": {
+            "title": plot_settings.get("title", ""),
+            "font_family": plot_settings.get("font_family", "Default"),
+            "font_size_pt": plot_settings.get("font_size", 10),
+            "line_width_px": plot_settings.get("line_width", 2.0),
+            "legend_loc": plot_settings.get("legend_loc", "Top-Right"),
+            "export_dpi": plot_settings.get("export_dpi", 300),
+            "theme": plot_settings.get("export_theme", "Default"),
+            "auto_limits_percentile": plot_settings.get("auto_limits_percentile", False),
+            "transparent_pdf": plot_settings.get("transparent_pdf", False),
+        }
+    }
+    if stats_dict:
+        meta_doc["session_summary"].update(stats_dict)
+
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta_doc, f, indent=2)
+    return meta_path
+
+
+def export_tikz_pgf(filepath: str, data_dict: dict, plot_settings: dict, is_export_dark: bool = False):
+    """
+    Exports clean, publication-grade LaTeX TikZ / pgfplots code (.pgf or .tex).
+    Natively compatible with LaTeX documents via \\usepackage{pgfplots}.
+    """
+    t = data_dict.get('t', [])
+    if not t:
+        raise ValueError("No time series data available for LaTeX TikZ export.")
+
+    title_text = plot_settings.get("title", "LAB-HP 41000 Telemetry")
+    show_title = plot_settings.get("show_title", True)
+    x_lbl = plot_settings.get("x_label", "Elapsed Time")
+    x_unit = plot_settings.get("x_unit", "s")
+    x_full = f"{x_lbl} ({x_unit})" if x_unit else x_lbl
+    y_lbl = plot_settings.get("y_label", "Magnitude")
+    y_unit = plot_settings.get("y_unit", "")
+    y_full = f"{y_lbl} ({y_unit})" if y_unit else y_lbl
+    lw = plot_settings.get("line_width", 1.5)
+
+    max_pts = 600
+    stride = max(1, len(t) // max_pts)
+
+    tikz_lines = [
+        r"% ============================================================================",
+        r"% Generated by ETPS LAB-HP 41000 Controller v5 — LaTeX TikZ / pgfplots Export",
+        f"% Timestamp: {datetime.datetime.now().isoformat()}",
+        f"% Publication Preset: {plot_settings.get('publication_preset', 'Custom')}",
+        r"% Required LaTeX Preamble: \usepackage{pgfplots} \pgfplotsset{compat=1.18}",
+        r"% ============================================================================",
+        r"\begin{tikzpicture}",
+        r"\begin{axis}[",
+        r"    width=13.5cm, height=7.5cm,",
+        f"    xlabel={{{x_full}}},",
+        f"    ylabel={{{y_full}}},",
+    ]
+    if show_title and title_text:
+        tikz_lines.append(f"    title={{{title_text}}},")
+    tikz_lines.extend([
+        r"    grid=both,",
+        r"    grid style={line width=.1pt, draw=gray!25},",
+        r"    major grid style={line width=.2pt, draw=gray!50},",
+        r"    legend pos=north east,",
+        r"    legend cell align={left},",
+        r"    legend style={font=\footnotesize},",
+        r"    tick label style={font=\footnotesize},",
+        r"    label style={font=\small},",
+        r"]"
+    ])
+
+    color_map = {
+        'v': ("blue!75!black", "Voltage (V)"),
+        'i': ("teal!85!black", "Current (A)"),
+        'p': ("orange!85!black", "Power (W)"),
+        'r': ("violet!85!black", "Resistance (\\Omega)")
+    }
+
+    trace_order_pref = plot_settings.get("trace_order", ["Voltage (V)", "Current (A)", "Power (W)", "Resistance (Ω)"])
+    key_order = []
+    for pref in trace_order_pref:
+        if "Voltage" in pref and 'v' in data_dict and data_dict['v']: key_order.append('v')
+        elif "Current" in pref and 'i' in data_dict and data_dict['i']: key_order.append('i')
+        elif "Power" in pref and 'p' in data_dict and data_dict['p']: key_order.append('p')
+        elif "Resistance" in pref and 'r' in data_dict and data_dict['r']: key_order.append('r')
+
+    if not key_order:
+        key_order = [k for k in ['v', 'i', 'p', 'r'] if k in data_dict and data_dict[k]]
+
+    for k in key_order:
+        col_tex, label_tex = color_map[k]
+        series = data_dict[k]
+        tikz_lines.append(f"\\addplot[color={col_tex}, line width={lw:.1f}pt] coordinates {{")
+        coord_buf = []
+        n = min(len(t), len(series))
+        for idx in range(0, n, stride):
+            t_val = t[idx]
+            y_val = series[idx]
+            if y_val is None or math.isnan(y_val) or math.isinf(y_val):
+                continue
+            coord_buf.append(f"({t_val:.3f}, {y_val:.3f})")
+            if len(coord_buf) >= 8:
+                tikz_lines.append("    " + " ".join(coord_buf))
+                coord_buf = []
+        if coord_buf:
+            tikz_lines.append("    " + " ".join(coord_buf))
+        tikz_lines.append("};")
+        tikz_lines.append(f"\\addlegendentry{{{label_tex}}}")
+
+    tikz_lines.extend([
+        r"\end{axis}",
+        r"\end{tikzpicture}"
+    ])
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("\n".join(tikz_lines) + "\n")
+
+
+class BatchExportDialog(QDialog):
+    """
+    Comprehensive dialog for batch exporting all active telemetry traces:
+    - Multi-Panel publication PDF document
+    - Individual trace raster/vector image files (V, I, P, R)
+    - Companion metadata (.meta) JSON file
+    - LaTeX TikZ / PGF export
+    - High-DPI and Publication Theme selection
+    """
+    def __init__(self, parent=None, default_name="session_batch"):
         super().__init__(parent)
-        self.setWindowTitle("Chart Presentation & Export Settings")
-        self.setMinimumWidth(460)
-        self.settings = dict(settings)
+        self.setWindowTitle("Batch Export Telemetry Suite")
+        self.setMinimumWidth(520)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        # 1. Title & Alignment Group
-        grp_title = QGroupBox("Plot Title & Positioning")
+        grp_target = QGroupBox("Target Directory & File Prefix")
+        g1 = QGridLayout(grp_target)
+        g1.addWidget(QLabel("Output Directory:"), 0, 0)
+        self.txt_dir = QLineEdit(str(Path.cwd()))
+        g1.addWidget(self.txt_dir, 0, 1)
+        btn_browse = QPushButton("Browse...")
+        btn_browse.clicked.connect(self._browse_dir)
+        g1.addWidget(btn_browse, 0, 2)
+
+        g1.addWidget(QLabel("File Prefix:"), 1, 0)
+        self.txt_prefix = QLineEdit(default_name)
+        g1.addWidget(self.txt_prefix, 1, 1, 1, 2)
+        layout.addWidget(grp_target)
+
+        grp_mode = QGroupBox("Batch Export Mode & Layout")
+        g2 = QVBoxLayout(grp_mode)
+        self.radio_multipanel = QRadioButton("Multi-Panel Document (Stacked V, I, P, R subplots in a single publication figure)")
+        self.radio_multipanel.setChecked(True)
+        self.radio_separate = QRadioButton("Individual Trace Files (Separate image files for Voltage, Current, Power, Resistance)")
+        g2.addWidget(self.radio_multipanel)
+        g2.addWidget(self.radio_separate)
+        layout.addWidget(grp_mode)
+
+        grp_fmt = QGroupBox("Format & Quality")
+        g3 = QGridLayout(grp_fmt)
+        g3.addWidget(QLabel("File Format:"), 0, 0)
+        self.combo_fmt = QComboBox()
+        self.combo_fmt.addItems([
+            "PDF Vector Document (*.pdf)",
+            "PNG High-DPI Raster (*.png)",
+            "Scalable Vector Graphic (*.svg)",
+            "LaTeX TikZ / pgfplots (*.pgf)",
+            "JPEG Image (*.jpg)"
+        ])
+        g3.addWidget(self.combo_fmt, 0, 1)
+
+        g3.addWidget(QLabel("Quality / DPI:"), 1, 0)
+        self.combo_dpi = QComboBox()
+        self.combo_dpi.addItems(["150 DPI (Screen)", "300 DPI (Journal Print)", "600 DPI (Archival Ultra)", "1200 DPI (Micro-Graphic)"])
+        self.combo_dpi.setCurrentIndex(1)
+        g3.addWidget(self.combo_dpi, 1, 1)
+
+        g3.addWidget(QLabel("Color Theme:"), 2, 0)
+        self.combo_theme = QComboBox()
+        self.combo_theme.addItems(["Publication Clean Light (White)", "Dark Mode (Slate)", "Match Active GUI Theme"])
+        g3.addWidget(self.combo_theme, 2, 1)
+
+        self.chk_meta = QCheckBox("Generate Companion .meta JSON File")
+        self.chk_meta.setChecked(True)
+        g3.addWidget(self.chk_meta, 3, 0, 1, 2)
+
+        self.chk_watermark = QCheckBox("Include Provenance Footnote / Watermark")
+        self.chk_watermark.setChecked(True)
+        g3.addWidget(self.chk_watermark, 4, 0, 1, 2)
+
+        self.chk_transparent = QCheckBox("Transparent Background (PDF / PNG)")
+        self.chk_transparent.setChecked(False)
+        g3.addWidget(self.chk_transparent, 5, 0, 1, 2)
+
+        layout.addWidget(grp_fmt)
+
+        bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bbox.accepted.connect(self.accept)
+        bbox.rejected.connect(self.reject)
+        layout.addWidget(bbox)
+
+    def _browse_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "Select Export Directory", self.txt_dir.text())
+        if d:
+            self.txt_dir.setText(d)
+
+    def get_options(self) -> dict:
+        dpi_val = int(self.combo_dpi.currentText().split()[0])
+        fmt_str = self.combo_fmt.currentText()
+        if "pdf" in fmt_str.lower(): ext = ".pdf"
+        elif "png" in fmt_str.lower(): ext = ".png"
+        elif "svg" in fmt_str.lower(): ext = ".svg"
+        elif "pgf" in fmt_str.lower(): ext = ".pgf"
+        else: ext = ".jpg"
+
+        return {
+            "dir": self.txt_dir.text().strip(),
+            "prefix": self.txt_prefix.text().strip(),
+            "multipanel": self.radio_multipanel.isChecked(),
+            "ext": ext,
+            "dpi": dpi_val,
+            "theme": self.combo_theme.currentText(),
+            "generate_meta": self.chk_meta.isChecked(),
+            "watermark": self.chk_watermark.isChecked(),
+            "transparent": self.chk_transparent.isChecked(),
+        }
+
+# =============================================================================
+# PUBLICATION PRESETS & TEMPLATES CONFIGURATION
+# =============================================================================
+TEMPLATE_DIR = Path.home() / ".config" / "labhp" / "plot_templates"
+try:
+    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    TEMPLATE_DIR = Path.cwd() / "plot_templates"
+    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+
+PUBLICATION_PRESETS = {
+    "Custom (User Defined)": None,
+    "Nature (89mm, 7pt Arial, 1.0pt line, 600 DPI)": {
+        "title_align": "Left",
+        "font_size": 7,
+        "font_family": "Arial, Helvetica, sans-serif",
+        "line_width": 1.0,
+        "plot_style": "Continuous: Solid Line (Default)",
+        "marker_size": 4,
+        "grid_style": "None",
+        "legend_loc": "Auto (Lowest Density)",
+        "export_theme": "Publication Clean Light (White)",
+        "export_dpi": 600,
+        "auto_limits_percentile": True,
+        "transparent_pdf": True,
+        "show_watermark": False,
+        "export_companion_meta": True,
+    },
+    "IEEE Transactions (3.5in, 8pt Times, 1.5pt line, 300 DPI)": {
+        "title_align": "Center",
+        "font_size": 8,
+        "font_family": "Times New Roman, serif",
+        "line_width": 1.5,
+        "plot_style": "Continuous: Solid Line (Default)",
+        "marker_size": 5,
+        "grid_style": "Both X & Y",
+        "legend_loc": "Top-Right",
+        "export_theme": "Publication Clean Light (White)",
+        "export_dpi": 300,
+        "auto_limits_percentile": True,
+        "transparent_pdf": False,
+        "show_watermark": False,
+        "export_companion_meta": True,
+    },
+    "APS Physical Review (3.375in, 9pt, 1.0pt line, 600 DPI)": {
+        "title_align": "Center",
+        "font_size": 9,
+        "font_family": "Times New Roman, serif",
+        "line_width": 1.0,
+        "plot_style": "Continuous: Solid Line (Default)",
+        "marker_size": 4,
+        "grid_style": "Both X & Y",
+        "legend_loc": "Auto (Lowest Density)",
+        "export_theme": "Publication Clean Light (White)",
+        "export_dpi": 600,
+        "auto_limits_percentile": True,
+        "transparent_pdf": True,
+        "show_watermark": False,
+        "export_companion_meta": True,
+    },
+    "Industrial High-Density (Slate Dark, 2.0pt line, 150 DPI)": {
+        "title_align": "Center",
+        "font_size": 10,
+        "font_family": "JetBrains Mono, monospace",
+        "line_width": 2.0,
+        "plot_style": "Continuous: Solid Line (Default)",
+        "marker_size": 6,
+        "grid_style": "Both X & Y",
+        "legend_loc": "Top-Right",
+        "export_theme": "Dark Mode (Slate)",
+        "export_dpi": 150,
+        "auto_limits_percentile": False,
+        "transparent_pdf": False,
+        "show_watermark": True,
+        "watermark_text": "ETPS LAB-HP 41000 Telemetry",
+        "export_companion_meta": True,
+    },
+}
+
+class PlotPresentationDialog(QDialog):
+    """
+    Publication-grade customization dialog for waveform presentation and export:
+    - Template System (Save/Load JSON I/O, Recent templates)
+    - Publication Presets (Nature, IEEE, APS, Industrial, Custom)
+    - Typography, Font Pairing, and Mathematical Sizing
+    - Smart Layout: Auto-legend to lowest-density region, 5-95% percentile auto-axis limits
+    - Drag-and-Drop Trace Priority & Legend Ordering
+    - Metadata & LaTeX Support (Companion .meta JSON, Watermark, Transparent PDF)
+    """
+
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Chart Presentation & Publication Settings")
+        self.setMinimumWidth(560)
+        self.settings = dict(settings)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        # 0. Preset & Template Management Bar
+        grp_tmpl = QGroupBox("Publication Presets & Template System")
+        g_tmpl = QGridLayout(grp_tmpl)
+        g_tmpl.setSpacing(8)
+
+        g_tmpl.addWidget(QLabel("Preset:"), 0, 0)
+        self.combo_preset = QComboBox()
+        self.combo_preset.addItems(list(PUBLICATION_PRESETS.keys()))
+        curr_preset = self.settings.get("publication_preset", "Custom (User Defined)")
+        if curr_preset in PUBLICATION_PRESETS:
+            self.combo_preset.setCurrentText(curr_preset)
+        self.combo_preset.currentIndexChanged.connect(self._on_preset_changed)
+        g_tmpl.addWidget(self.combo_preset, 0, 1, 1, 3)
+
+        # Recent Templates
+        g_tmpl.addWidget(QLabel("Saved Template:"), 1, 0)
+        self.combo_templates = QComboBox()
+        self._refresh_template_list()
+        self.combo_templates.currentIndexChanged.connect(self._on_template_selected)
+        g_tmpl.addWidget(self.combo_templates, 1, 1)
+
+        self.btn_save_tmpl = QPushButton("💾 Save Template...")
+        self.btn_save_tmpl.setToolTip("Save all active presentation settings to a reusable JSON template")
+        self.btn_save_tmpl.clicked.connect(self._save_template_dialog)
+        g_tmpl.addWidget(self.btn_save_tmpl, 1, 2)
+
+        self.btn_load_tmpl = QPushButton("📂 Load File...")
+        self.btn_load_tmpl.setToolTip("Browse and load a custom JSON settings template")
+        self.btn_load_tmpl.clicked.connect(self._load_template_file_dialog)
+        g_tmpl.addWidget(self.btn_load_tmpl, 1, 3)
+
+        layout.addWidget(grp_tmpl)
+
+        # 1. Title & Typography Group
+        grp_title = QGroupBox("Plot Title, Axes & Typography")
         g1 = QGridLayout(grp_title)
         g1.addWidget(QLabel("Title Text:"), 0, 0)
         self.txt_title = QLineEdit(self.settings.get("title", "LAB-HP 41000 — Session Waveform Telemetry"))
@@ -982,32 +1472,51 @@ class PlotPresentationDialog(QDialog):
         self.combo_title_pos.addItems(["Center", "Left", "Right"])
         self.combo_title_pos.setCurrentText(self.settings.get("title_align", "Center"))
         g1.addWidget(self.combo_title_pos, 2, 1)
+
+        g1.addWidget(QLabel("Font Family:"), 3, 0)
+        self.combo_font = QComboBox()
+        self.combo_font.addItems([
+            "Default (Sans-Serif)",
+            "Arial, Helvetica, sans-serif",
+            "Times New Roman, serif",
+            "Computer Modern, serif",
+            "JetBrains Mono, monospace"
+        ])
+        self.combo_font.setCurrentText(self.settings.get("font_family", "Default (Sans-Serif)"))
+        g1.addWidget(self.combo_font, 3, 1)
+
+        g1.addWidget(QLabel("Font Size:"), 4, 0)
+        self.spin_font_size = QSpinBox()
+        self.spin_font_size.setRange(6, 18)
+        self.spin_font_size.setValue(int(self.settings.get("font_size", 10)))
+        self.spin_font_size.setSuffix(" pt")
+        g1.addWidget(self.spin_font_size, 4, 1)
+
+        g1.addWidget(QLabel("X-Axis Label:"), 5, 0)
+        self.txt_xlabel = QLineEdit(self.settings.get("x_label", "Elapsed Time"))
+        g1.addWidget(self.txt_xlabel, 5, 1)
+
+        g1.addWidget(QLabel("X-Axis Unit:"), 6, 0)
+        self.txt_xunit = QLineEdit(self.settings.get("x_unit", "s"))
+        g1.addWidget(self.txt_xunit, 6, 1)
+
+        g1.addWidget(QLabel("Y-Axis Label:"), 7, 0)
+        self.txt_ylabel = QLineEdit(self.settings.get("y_label", "Magnitude"))
+        g1.addWidget(self.txt_ylabel, 7, 1)
+
+        g1.addWidget(QLabel("Y-Axis Unit:"), 8, 0)
+        self.txt_yunit = QLineEdit(self.settings.get("y_unit", ""))
+        g1.addWidget(self.txt_yunit, 8, 1)
+
+        self.chk_auto_limits = QCheckBox("Smart Outlier Suppression: Auto-Axis Limits (5-95% Percentile)")
+        self.chk_auto_limits.setToolTip("Suppresses transient inrush spikes from flattening the steady-state waveform")
+        self.chk_auto_limits.setChecked(self.settings.get("auto_limits_percentile", False))
+        g1.addWidget(self.chk_auto_limits, 9, 0, 1, 2)
+
         layout.addWidget(grp_title)
 
-        # 2. Axis Labels Group
-        grp_axes = QGroupBox("Axis Labels & Units")
-        g2 = QGridLayout(grp_axes)
-        g2.addWidget(QLabel("X-Axis Label:"), 0, 0)
-        self.txt_xlabel = QLineEdit(self.settings.get("x_label", "Elapsed Time"))
-        g2.addWidget(self.txt_xlabel, 0, 1)
-
-        g2.addWidget(QLabel("X-Axis Unit:"), 1, 0)
-        self.txt_xunit = QLineEdit(self.settings.get("x_unit", "s"))
-        self.txt_xunit.setPlaceholderText("e.g. s, ms, min")
-        g2.addWidget(self.txt_xunit, 1, 1)
-
-        g2.addWidget(QLabel("Y-Axis Label:"), 2, 0)
-        self.txt_ylabel = QLineEdit(self.settings.get("y_label", "Magnitude"))
-        g2.addWidget(self.txt_ylabel, 2, 1)
-
-        g2.addWidget(QLabel("Y-Axis Unit:"), 3, 0)
-        self.txt_yunit = QLineEdit(self.settings.get("y_unit", ""))
-        self.txt_yunit.setPlaceholderText("e.g. V / A / W / Ω")
-        g2.addWidget(self.txt_yunit, 3, 1)
-        layout.addWidget(grp_axes)
-
-        # 3. Legend Placement & Trace Styling
-        grp_legend = QGroupBox("Legend Positioning & Trace Styling")
+        # 2. Legend, Trace Styling & Drag-Drop Order Group
+        grp_legend = QGroupBox("Legend Positioning, Trace Styling & Layer Order")
         g3 = QGridLayout(grp_legend)
         self.chk_show_legend = QCheckBox("Display Legend")
         self.chk_show_legend.setChecked(self.settings.get("show_legend", True))
@@ -1016,18 +1525,17 @@ class PlotPresentationDialog(QDialog):
         g3.addWidget(QLabel("Legend Position:"), 1, 0)
         self.combo_legend_loc = QComboBox()
         self.combo_legend_loc.addItems([
-            "Top-Right", "Top-Left", "Bottom-Right", "Bottom-Left",
+            "Auto (Lowest Density)", "Top-Right", "Top-Left", "Bottom-Right", "Bottom-Left",
             "Top-Center", "Bottom-Center", "Hidden"
         ])
         self.combo_legend_loc.setCurrentText(self.settings.get("legend_loc", "Top-Right"))
-        self.combo_legend_loc.setToolTip("Position the legend away from active signal peaks to prevent obstruction")
+        self.combo_legend_loc.setToolTip("Auto (Lowest Density) places the legend away from active waveform points")
         g3.addWidget(self.combo_legend_loc, 1, 1)
 
         g3.addWidget(QLabel("Plot Style / Trace:"), 2, 0)
         self.combo_plot_style = QComboBox()
         self.combo_plot_style.addItems(PLOT_STYLE_OPTIONS)
         self.combo_plot_style.setCurrentText(self.settings.get("plot_style", "Continuous: Solid Line (Default)"))
-        self.combo_plot_style.setToolTip("Select continuous lines, discrete markers (+, x, *, o, s, ^, d), or step waveforms")
         g3.addWidget(self.combo_plot_style, 2, 1)
 
         g3.addWidget(QLabel("Marker Size:"), 3, 0)
@@ -1035,13 +1543,12 @@ class PlotPresentationDialog(QDialog):
         self.spin_marker_size.setRange(2, 24)
         self.spin_marker_size.setValue(int(self.settings.get("marker_size", 6)))
         self.spin_marker_size.setSuffix(" px")
-        self.spin_marker_size.setToolTip("Size of discrete scatter markers or combined trace nodes")
         g3.addWidget(self.spin_marker_size, 3, 1)
 
         g3.addWidget(QLabel("Trace Line Width:"), 4, 0)
         self.combo_line_width = QComboBox()
-        self.combo_line_width.addItems(["1.0 px (Fine)", "1.5 px (Normal)", "2.0 px (Standard)", "2.5 px (Thick)", "3.0 px (Bold)"])
-        lw_str = f"{float(self.settings.get('line_width', 2.0)):.1f}"
+        self.combo_line_width.addItems(["0.75 px (Hairline)", "1.0 px (Fine)", "1.5 px (Normal)", "2.0 px (Standard)", "2.5 px (Thick)", "3.0 px (Bold)"])
+        lw_str = f"{float(self.settings.get('line_width', 2.0)):.2f}".rstrip('0').rstrip('.')
         for idx in range(self.combo_line_width.count()):
             if lw_str in self.combo_line_width.itemText(idx):
                 self.combo_line_width.setCurrentIndex(idx)
@@ -1053,10 +1560,27 @@ class PlotPresentationDialog(QDialog):
         self.combo_grid.addItems(["Both X & Y", "X Only", "Y Only", "None"])
         self.combo_grid.setCurrentText(self.settings.get("grid_style", "Both X & Y"))
         g3.addWidget(self.combo_grid, 5, 1)
+
+        # Drag-and-drop Trace Ordering
+        g3.addWidget(QLabel("Trace & Legend Order (Drag to Reorder):"), 6, 0, 1, 2)
+        self.list_trace_order = QListWidget()
+        self.list_trace_order.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.list_trace_order.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.list_trace_order.setMaximumHeight(88)
+
+        default_order = ["Voltage (V)", "Current (A)", "Power (W)", "Resistance (Ω)"]
+        saved_order = self.settings.get("trace_order", default_order)
+        for item_text in saved_order:
+            self.list_trace_order.addItem(item_text)
+        for item_text in default_order:
+            if item_text not in saved_order:
+                self.list_trace_order.addItem(item_text)
+        g3.addWidget(self.list_trace_order, 7, 0, 1, 2)
+
         layout.addWidget(grp_legend)
 
-        # 4. Export Presentation Defaults
-        grp_export = QGroupBox("Export Presentation Defaults")
+        # 3. Export Defaults, Metadata & LaTeX Group
+        grp_export = QGroupBox("Export Defaults, Metadata & LaTeX Features")
         g4 = QGridLayout(grp_export)
         g4.addWidget(QLabel("Export Color Theme:"), 0, 0)
         self.combo_export_theme = QComboBox()
@@ -1066,13 +1590,30 @@ class PlotPresentationDialog(QDialog):
 
         g4.addWidget(QLabel("Export Quality / DPI:"), 1, 0)
         self.combo_export_dpi = QComboBox()
-        self.combo_export_dpi.addItems(["150 DPI (Standard Screen)", "300 DPI (High-Resolution Print)", "600 DPI (Ultra-Sharp Archival)"])
+        self.combo_export_dpi.addItems(["150 DPI (Standard Screen)", "300 DPI (High-Resolution Print)", "600 DPI (Ultra-Sharp Archival)", "1200 DPI (Micro-Graphic)"])
         dpi_str = str(self.settings.get("export_dpi", 300))
         for idx in range(self.combo_export_dpi.count()):
             if dpi_str in self.combo_export_dpi.itemText(idx):
                 self.combo_export_dpi.setCurrentIndex(idx)
                 break
         g4.addWidget(self.combo_export_dpi, 1, 1)
+
+        self.chk_transparent = QCheckBox("Transparent Background (PDF / PNG / LaTeX)")
+        self.chk_transparent.setChecked(self.settings.get("transparent_pdf", False))
+        g4.addWidget(self.chk_transparent, 2, 0, 1, 2)
+
+        self.chk_watermark = QCheckBox("Add Provenance Footnote / Watermark")
+        self.chk_watermark.setChecked(self.settings.get("show_watermark", False))
+        g4.addWidget(self.chk_watermark, 3, 0)
+
+        self.txt_watermark = QLineEdit(self.settings.get("watermark_text", "ETPS LAB-HP 41000 Telemetry"))
+        g4.addWidget(self.txt_watermark, 3, 1)
+
+        self.chk_companion_meta = QCheckBox("Generate Companion .meta JSON File on Export")
+        self.chk_companion_meta.setToolTip("Exports a companion metadata file with descriptive statistics, peaks, and settings")
+        self.chk_companion_meta.setChecked(self.settings.get("export_companion_meta", True))
+        g4.addWidget(self.chk_companion_meta, 4, 0, 1, 2)
+
         layout.addWidget(grp_export)
 
         # Dialog Buttons
@@ -1088,22 +1629,115 @@ class PlotPresentationDialog(QDialog):
         btn_row.addWidget(bbox)
         layout.addLayout(btn_row)
 
+    def _refresh_template_list(self):
+        self.combo_templates.clear()
+        self.combo_templates.addItem("-- Select Template --")
+        try:
+            for p in sorted(TEMPLATE_DIR.glob("*.json")):
+                self.combo_templates.addItem(p.stem, userData=str(p))
+        except Exception:
+            pass
+
+    def _on_template_selected(self, index: int):
+        if index <= 0:
+            return
+        filepath = self.combo_templates.currentData()
+        if filepath and os.path.exists(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.apply_dict_to_ui(data)
+            except Exception as e:
+                QMessageBox.warning(self, "Template Error", f"Failed to load template:\n{e}")
+
+    def _on_preset_changed(self, index: int):
+        preset_name = self.combo_preset.currentText()
+        preset_cfg = PUBLICATION_PRESETS.get(preset_name)
+        if preset_cfg:
+            self.apply_dict_to_ui(preset_cfg)
+
+    def _save_template_dialog(self):
+        default_p = str(TEMPLATE_DIR / "custom_template.json")
+        path, _ = QFileDialog.getSaveFileName(self, "Save Presentation Template", default_p, "JSON Template (*.json)")
+        if path:
+            try:
+                settings_dict = self.get_settings()
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(settings_dict, f, indent=2)
+                self._refresh_template_list()
+                QMessageBox.information(self, "Template Saved", f"Presentation template saved to:\n{path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Save Failed", f"Failed to save template:\n{e}")
+
+    def _load_template_file_dialog(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Load Presentation Template", str(TEMPLATE_DIR), "JSON Template (*.json)")
+        if path:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.apply_dict_to_ui(data)
+                QMessageBox.information(self, "Template Loaded", f"Template '{Path(path).stem}' loaded successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Load Failed", f"Failed to load template:\n{e}")
+
+    def apply_dict_to_ui(self, d: dict):
+        if "title" in d: self.txt_title.setText(str(d["title"]))
+        if "show_title" in d: self.chk_show_title.setChecked(bool(d["show_title"]))
+        if "title_align" in d: self.combo_title_pos.setCurrentText(str(d["title_align"]))
+        if "font_size" in d: self.spin_font_size.setValue(int(d["font_size"]))
+        if "font_family" in d: self.combo_font.setCurrentText(str(d["font_family"]))
+        if "x_label" in d: self.txt_xlabel.setText(str(d["x_label"]))
+        if "x_unit" in d: self.txt_xunit.setText(str(d["x_unit"]))
+        if "y_label" in d: self.txt_ylabel.setText(str(d["y_label"]))
+        if "y_unit" in d: self.txt_yunit.setText(str(d["y_unit"]))
+        if "show_legend" in d: self.chk_show_legend.setChecked(bool(d["show_legend"]))
+        if "legend_loc" in d: self.combo_legend_loc.setCurrentText(str(d["legend_loc"]))
+        if "plot_style" in d: self.combo_plot_style.setCurrentText(str(d["plot_style"]))
+        if "marker_size" in d: self.spin_marker_size.setValue(int(d["marker_size"]))
+        if "line_width" in d:
+            lw_s = f"{float(d['line_width']):.2f}".rstrip('0').rstrip('.')
+            for i in range(self.combo_line_width.count()):
+                if lw_s in self.combo_line_width.itemText(i):
+                    self.combo_line_width.setCurrentIndex(i)
+                    break
+        if "grid_style" in d: self.combo_grid.setCurrentText(str(d["grid_style"]))
+        if "export_theme" in d: self.combo_export_theme.setCurrentText(str(d["export_theme"]))
+        if "export_dpi" in d:
+            dpi_s = str(d["export_dpi"])
+            for i in range(self.combo_export_dpi.count()):
+                if dpi_s in self.combo_export_dpi.itemText(i):
+                    self.combo_export_dpi.setCurrentIndex(i)
+                    break
+        if "auto_limits_percentile" in d: self.chk_auto_limits.setChecked(bool(d["auto_limits_percentile"]))
+        if "transparent_pdf" in d: self.chk_transparent.setChecked(bool(d["transparent_pdf"]))
+        if "show_watermark" in d: self.chk_watermark.setChecked(bool(d["show_watermark"]))
+        if "watermark_text" in d: self.txt_watermark.setText(str(d["watermark_text"]))
+        if "export_companion_meta" in d: self.chk_companion_meta.setChecked(bool(d["export_companion_meta"]))
+
     def _reset_defaults(self):
+        self.combo_preset.setCurrentText("Custom (User Defined)")
         self.txt_title.setText("LAB-HP 41000 — Session Waveform Telemetry")
         self.chk_show_title.setChecked(True)
         self.combo_title_pos.setCurrentText("Center")
+        self.combo_font.setCurrentIndex(0)
+        self.spin_font_size.setValue(10)
         self.txt_xlabel.setText("Elapsed Time")
         self.txt_xunit.setText("s")
         self.txt_ylabel.setText("Magnitude")
         self.txt_yunit.setText("")
+        self.chk_auto_limits.setChecked(False)
         self.chk_show_legend.setChecked(True)
         self.combo_legend_loc.setCurrentText("Top-Right")
         self.combo_plot_style.setCurrentText("Continuous: Solid Line (Default)")
         self.spin_marker_size.setValue(6)
-        self.combo_line_width.setCurrentIndex(2)  # 2.0 px
+        self.combo_line_width.setCurrentIndex(3)  # 2.0 px
         self.combo_grid.setCurrentText("Both X & Y")
         self.combo_export_theme.setCurrentText("Match Active GUI Theme")
         self.combo_export_dpi.setCurrentIndex(1)  # 300 DPI
+        self.chk_transparent.setChecked(False)
+        self.chk_watermark.setChecked(False)
+        self.txt_watermark.setText("ETPS LAB-HP 41000 Telemetry")
+        self.chk_companion_meta.setChecked(True)
 
     def get_settings(self) -> dict:
         lw_txt = self.combo_line_width.currentText()
@@ -1124,22 +1758,34 @@ class PlotPresentationDialog(QDialog):
         if not self.chk_show_legend.isChecked():
             loc = "Hidden"
 
+        # Trace order
+        trace_order = [self.list_trace_order.item(i).text() for i in range(self.list_trace_order.count())]
+
         return {
+            "publication_preset": self.combo_preset.currentText(),
             "title": self.txt_title.text().strip(),
             "show_title": self.chk_show_title.isChecked(),
             "title_align": self.combo_title_pos.currentText(),
+            "font_family": self.combo_font.currentText(),
+            "font_size": self.spin_font_size.value(),
             "x_label": self.txt_xlabel.text().strip(),
             "x_unit": self.txt_xunit.text().strip(),
             "y_label": self.txt_ylabel.text().strip(),
             "y_unit": self.txt_yunit.text().strip(),
+            "auto_limits_percentile": self.chk_auto_limits.isChecked(),
             "show_legend": self.chk_show_legend.isChecked(),
             "legend_loc": loc,
             "plot_style": self.combo_plot_style.currentText(),
             "marker_size": self.spin_marker_size.value(),
             "line_width": lw_val,
             "grid_style": self.combo_grid.currentText(),
+            "trace_order": trace_order,
             "export_theme": self.combo_export_theme.currentText(),
             "export_dpi": dpi_val,
+            "transparent_pdf": self.chk_transparent.isChecked(),
+            "show_watermark": self.chk_watermark.isChecked(),
+            "watermark_text": self.txt_watermark.text().strip(),
+            "export_companion_meta": self.chk_companion_meta.isChecked(),
         }
 
 
@@ -1989,9 +2635,22 @@ class LABHPControllerV5(QMainWindow):
         self.btn_clear_plot.clicked.connect(self._plot_clear_buffer)
         chart_tb.addWidget(self.btn_clear_plot)
 
+        self.btn_pub_mode_live = QToolButton()
+        self.btn_pub_mode_live.setText("📌 Pub Mode")
+        self.btn_pub_mode_live.setCheckable(True)
+        self.btn_pub_mode_live.setToolTip("Toggle Publication Mode: freezes style, prevents live auto-range jitter, and locks view for steady publication figure inspection")
+        self.btn_pub_mode_live.clicked.connect(self._toggle_publication_mode)
+        chart_tb.addWidget(self.btn_pub_mode_live)
+
+        self.btn_batch_export_live = QToolButton()
+        self.btn_batch_export_live.setText("📦 Batch Export...")
+        self.btn_batch_export_live.setToolTip("Batch export all active traces as multi-panel PDF or individual image files")
+        self.btn_batch_export_live.clicked.connect(self._batch_export_live)
+        chart_tb.addWidget(self.btn_batch_export_live)
+
         self.btn_export_live = QToolButton()
         self.btn_export_live.setText("Export Plot...")
-        self.btn_export_live.setToolTip("Export live oscilloscope trend to PDF, PNG, JPEG, or SVG")
+        self.btn_export_live.setToolTip("Export live oscilloscope trend to PDF, PNG, JPEG, SVG, or LaTeX TikZ")
         self.btn_export_live.clicked.connect(self._export_live_plot)
         chart_tb.addWidget(self.btn_export_live)
 
@@ -2206,6 +2865,19 @@ class LABHPControllerV5(QMainWindow):
         self.btn_hist_autorange.clicked.connect(self._hist_plot_autorange)
         hist_tb.addWidget(self.btn_hist_autorange)
 
+        self.btn_pub_mode_hist = QToolButton()
+        self.btn_pub_mode_hist.setText("📌 Pub Mode")
+        self.btn_pub_mode_hist.setCheckable(True)
+        self.btn_pub_mode_hist.setToolTip("Toggle Publication Mode: freezes style and locks view for steady publication figure inspection")
+        self.btn_pub_mode_hist.clicked.connect(self._toggle_publication_mode)
+        hist_tb.addWidget(self.btn_pub_mode_hist)
+
+        self.btn_hist_batch_export = QToolButton()
+        self.btn_hist_batch_export.setText("📦 Batch Export...")
+        self.btn_hist_batch_export.setToolTip("Batch export all session traces as multi-panel PDF or individual image files")
+        self.btn_hist_batch_export.clicked.connect(self._batch_export_historical)
+        hist_tb.addWidget(self.btn_hist_batch_export)
+
         self.btn_hist_settings = QToolButton()
         self.btn_hist_settings.setText("⚙ Settings...")
         self.btn_hist_settings.setToolTip("Customize Title, Axis Labels, Legend Placement, Line Widths, and Grid")
@@ -2214,7 +2886,7 @@ class LABHPControllerV5(QMainWindow):
 
         self.btn_hist_export = QPushButton("Export Plot...")
         self.btn_hist_export.setObjectName("primary")
-        self.btn_hist_export.setToolTip("Export historical session waveform to PDF, PNG, JPEG, or SVG")
+        self.btn_hist_export.setToolTip("Export historical session waveform to PDF, PNG, JPEG, SVG, or LaTeX TikZ")
         self.btn_hist_export.clicked.connect(self._export_historical_plot)
         hist_tb.addWidget(self.btn_hist_export)
 
@@ -2600,7 +3272,10 @@ class LABHPControllerV5(QMainWindow):
             self.history_i.pop(0)
             self.history_p.pop(0)
 
-        # 60 FPS update via PyQtGraph
+        # 60 FPS update via PyQtGraph (Frozen if publication mode is active)
+        if getattr(self, "publication_mode", False):
+            return
+
         if HAVE_PYQTGRAPH:
             _, _, _, is_step = parse_plot_style(self.plot_settings.get("plot_style", ""))
             if is_step and len(self.history_t) > 1:
@@ -3052,6 +3727,16 @@ class LABHPControllerV5(QMainWindow):
             self.hist_plot_widget.setLabel('bottom', x_lbl, units=x_unit if x_unit else None)
             self.hist_plot_widget.setLabel('left', y_lbl, units=y_unit if y_unit else None)
 
+            # Auto-legend resolution if requested
+            if leg_loc == "Auto (Lowest Density)" and self.hist_t:
+                active_dict = {}
+                if self.chk_hist_v.isChecked(): active_dict['v'] = self.hist_v
+                if self.chk_hist_i.isChecked(): active_dict['i'] = self.hist_i
+                if self.chk_hist_p.isChecked(): active_dict['p'] = self.hist_p
+                if self.chk_hist_r.isChecked(): active_dict['r'] = self.hist_r
+                _, pg_pos = calculate_lowest_density_quadrant(self.hist_t, active_dict)
+                leg_loc = pg_pos
+
             # Legend Placement
             if hasattr(self, 'hist_legend') and self.hist_legend is not None:
                 if (not show_leg) or (leg_loc == "Hidden"):
@@ -3123,7 +3808,19 @@ class LABHPControllerV5(QMainWindow):
             else:
                 self.hist_curve_r.clear()
 
-            self.hist_plot_widget.autoRange()
+            if self.plot_settings.get("auto_limits_percentile"):
+                active_dict = {}
+                if self.chk_hist_v.isChecked() and self.hist_v: active_dict['v'] = self.hist_v
+                if self.chk_hist_i.isChecked() and self.hist_i: active_dict['i'] = self.hist_i
+                if self.chk_hist_p.isChecked() and self.hist_p: active_dict['p'] = self.hist_p
+                if self.chk_hist_r.isChecked() and self.hist_r: active_dict['r'] = self.hist_r
+                lims = calculate_percentile_limits(active_dict)
+                if lims:
+                    self.hist_plot_widget.setYRange(lims[0], lims[1])
+                else:
+                    self.hist_plot_widget.autoRange()
+            else:
+                self.hist_plot_widget.autoRange()
         else:
             self.hist_mpl_ax.clear()
             is_dark = (self.current_theme == "dark")
@@ -3241,6 +3938,14 @@ class LABHPControllerV5(QMainWindow):
             self.plot_widget.setLabel('bottom', x_lbl, units=x_unit if x_unit else None)
             self.plot_widget.setLabel('left', y_lbl, units=y_unit if y_unit else None)
 
+            if leg_loc == "Auto (Lowest Density)" and self.history_t:
+                active_dict = {}
+                if self.chk_show_v.isChecked(): active_dict['v'] = self.history_v
+                if self.chk_show_i.isChecked(): active_dict['i'] = self.history_i
+                if self.chk_show_p.isChecked(): active_dict['p'] = self.history_p
+                _, pg_pos = calculate_lowest_density_quadrant(self.history_t, active_dict)
+                leg_loc = pg_pos
+
             if hasattr(self, 'live_legend') and self.live_legend is not None:
                 if (not show_leg) or (leg_loc == "Hidden"):
                     self.live_legend.setVisible(False)
@@ -3262,12 +3967,28 @@ class LABHPControllerV5(QMainWindow):
                     except Exception:
                         pass
 
+            plot_style = self.plot_settings.get("plot_style", "Continuous: Solid Line (Default)")
+            marker_size = int(self.plot_settings.get("marker_size", 6))
+            is_dark = (self.current_theme == "dark")
+            col_v = "#38bdf8" if is_dark else "#0284c7"
+            col_i = "#4ade80" if is_dark else "#16a34a"
+            col_p = "#fbbf24" if is_dark else "#d97706"
+
             if hasattr(self, 'curve_v'):
-                self.curve_v.setPen(pg.mkPen(color="#38bdf8", width=lw))
+                apply_pyqtgraph_curve_style(self.curve_v, col_v, lw, plot_style, marker_size)
             if hasattr(self, 'curve_i'):
-                self.curve_i.setPen(pg.mkPen(color="#4ade80", width=lw))
+                apply_pyqtgraph_curve_style(self.curve_i, col_i, lw, plot_style, marker_size)
             if hasattr(self, 'curve_p'):
-                self.curve_p.setPen(pg.mkPen(color="#fbbf24", width=lw))
+                apply_pyqtgraph_curve_style(self.curve_p, col_p, lw, plot_style, marker_size)
+
+            if self.plot_settings.get("auto_limits_percentile") and self.history_t:
+                active_dict = {}
+                if self.chk_show_v.isChecked(): active_dict['v'] = self.history_v
+                if self.chk_show_i.isChecked(): active_dict['i'] = self.history_i
+                if self.chk_show_p.isChecked(): active_dict['p'] = self.history_p
+                lims = calculate_percentile_limits(active_dict)
+                if lims:
+                    self.plot_widget.setYRange(lims[0], lims[1])
 
         self._save_settings()
 
@@ -3393,19 +4114,21 @@ class LABHPControllerV5(QMainWindow):
         self.status_bar.showMessage(f"Applied {'Dark' if is_dark else 'Light'} theme.")
 
     # -------------------------------------------------------------------------
-    # MULTI-FORMAT EXPORT (PDF, PNG, JPEG, SVG)
+    # MULTI-FORMAT EXPORT & PUBLICATION SUITE (PDF, PNG, JPEG, SVG, LaTeX TikZ)
     # -------------------------------------------------------------------------
     def _export_plot(self, default_title: str, default_name: str, plot_widget, data_dict: dict = None):
         """
         Universal multi-format export for both Live Oscilloscope Trend and Historical Session Waveforms.
-        Supports PDF, PNG, JPEG, and SVG.
-        Incorporates user customization for labels, title, legend positioning, and color themes.
+        Supports PDF, PNG, JPEG, SVG, and LaTeX TikZ/pgfplots.
+        Incorporates publication presets, smart auto-legend, percentile outlier suppression,
+        transparent backgrounds, watermarks, and companion .meta JSON provenance.
         """
         filters = (
             "PDF Document (*.pdf);;"
             "PNG Image (*.png);;"
             "JPEG Image (*.jpg *.jpeg);;"
             "Scalable Vector Graphic (*.svg);;"
+            "LaTeX TikZ / pgfplots (*.pgf *.tex);;"
             "All Files (*.*)"
         )
         default_path = str(Path.cwd() / default_name)
@@ -3423,6 +4146,8 @@ class LABHPControllerV5(QMainWindow):
                 ext = ".jpg"
             elif "svg" in selected_filter.lower():
                 ext = ".svg"
+            elif "pgf" in selected_filter.lower() or "tikz" in selected_filter.lower() or "tex" in selected_filter.lower():
+                ext = ".pgf"
             else:
                 ext = ".png"
             filepath += ext
@@ -3446,7 +4171,13 @@ class LABHPControllerV5(QMainWindow):
             "Bottom-Right": "lower right", "Bottom-Left": "lower left",
             "Top-Center": "upper center", "Bottom-Center": "lower center",
         }
-        mpl_loc = mpl_loc_map.get(legend_loc, "upper right")
+
+        # Auto-legend detection
+        if legend_loc == "Auto (Lowest Density)" and data_dict and data_dict.get('t'):
+            mpl_loc, _ = calculate_lowest_density_quadrant(data_dict.get('t', []), data_dict)
+        else:
+            mpl_loc = mpl_loc_map.get(legend_loc, "upper right")
+
         line_width = float(self.plot_settings.get("line_width", 2.0))
         plot_style = self.plot_settings.get("plot_style", "Continuous: Solid Line (Default)")
         marker_size = int(self.plot_settings.get("marker_size", 6))
@@ -3454,8 +4185,13 @@ class LABHPControllerV5(QMainWindow):
         show_x_grid = ("X" in grid_style) or ("Both" in grid_style)
         show_y_grid = ("Y" in grid_style) or ("Both" in grid_style)
         export_dpi = int(self.plot_settings.get("export_dpi", 300))
+        transparent_bg = bool(self.plot_settings.get("transparent_pdf", False)) and ext in [".pdf", ".png", ".svg"]
+        show_watermark = bool(self.plot_settings.get("show_watermark", True))
+        watermark_text = self.plot_settings.get("watermark_text", "ETPS LAB-HP 41000 Telemetry")
+        auto_limits = bool(self.plot_settings.get("auto_limits_percentile", False))
+        trace_order_pref = self.plot_settings.get("trace_order", ["Voltage (V)", "Current (A)", "Power (W)", "Resistance (Ω)"])
 
-        # Determine color palette for export (Synthesized from Atmos, Media.io, UX Misfit, Toptal)
+        # Determine color palette for export
         exp_theme_opt = self.plot_settings.get("export_theme", "Match Active GUI Theme")
         if exp_theme_opt == "Dark Mode (Slate)":
             is_export_dark = True
@@ -3493,14 +4229,48 @@ class LABHPControllerV5(QMainWindow):
         kw_r = get_matplotlib_plot_kwargs(col_r, line_width, plot_style, marker_size)
 
         try:
+            # 0. LaTeX TikZ / pgfplots Export
+            if ext in [".pgf", ".tex"]:
+                if not data_dict or not data_dict.get('t'):
+                    raise ValueError("No numeric data points available for LaTeX TikZ export.")
+                export_tikz_pgf(filepath, data_dict, self.plot_settings, is_export_dark)
+                if self.plot_settings.get("export_companion_meta", True):
+                    generate_companion_metadata(filepath, self.plot_settings, data_dict)
+                self.status_bar.showMessage(f"LaTeX TikZ plot exported -> {Path(filepath).name}")
+                QMessageBox.information(self, "Export Successful", f"LaTeX TikZ code successfully generated to:\n{filepath}\n\nInclude in LaTeX via: \\input{{{Path(filepath).name}}}")
+                return
+
+            def _plot_traces_ordered(ax_obj):
+                t_arr = data_dict.get('t', [])
+                for pref in trace_order_pref:
+                    if "Voltage" in pref and 'v' in data_dict and data_dict['v']:
+                        ax_obj.plot(t_arr, data_dict['v'], label="Voltage (V)", **kw_v)
+                    elif "Current" in pref and 'i' in data_dict and data_dict['i']:
+                        ax_obj.plot(t_arr, data_dict['i'], label="Current (A)", **kw_i)
+                    elif "Power" in pref and 'p' in data_dict and data_dict['p']:
+                        ax_obj.plot(t_arr, data_dict['p'], label="Power (W)", **kw_p)
+                    elif "Resistance" in pref and 'r' in data_dict and data_dict['r']:
+                        r_clean = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in data_dict['r']]
+                        ax_obj.plot(t_arr, r_clean, label="Resistance (Ω)", **kw_r)
+
+                if auto_limits:
+                    lims = calculate_percentile_limits(data_dict)
+                    if lims:
+                        ax_obj.set_ylim(lims[0], lims[1])
+
             # 1. PNG Raster Image (High-DPI rendering)
             if ext == ".png":
                 exported = False
                 if data_dict and data_dict.get('t'):
                     try:
                         import matplotlib.pyplot as plt
-                        fig, ax = plt.subplots(figsize=(11, 6.5), facecolor=bg_fig, dpi=export_dpi)
-                        ax.set_facecolor(bg_ax)
+                        fig, ax = plt.subplots(figsize=(11, 6.5), facecolor=bg_fig if not transparent_bg else "none", dpi=export_dpi)
+                        if transparent_bg:
+                            fig.patch.set_alpha(0.0)
+                            ax.patch.set_alpha(0.0)
+                        else:
+                            ax.set_facecolor(bg_ax)
+
                         ax.tick_params(colors=fg_text)
                         for spine in ax.spines.values():
                             spine.set_color(color_grid)
@@ -3508,13 +4278,7 @@ class LABHPControllerV5(QMainWindow):
                         if show_x_grid or show_y_grid:
                             ax.grid(True, linestyle="--", alpha=0.35, color=color_grid)
 
-                        t = data_dict.get('t', [])
-                        if 'v' in data_dict and data_dict['v']: ax.plot(t, data_dict['v'], label="Voltage (V)", **kw_v)
-                        if 'i' in data_dict and data_dict['i']: ax.plot(t, data_dict['i'], label="Current (A)", **kw_i)
-                        if 'p' in data_dict and data_dict['p']: ax.plot(t, data_dict['p'], label="Power (W)", **kw_p)
-                        if 'r' in data_dict and data_dict['r']:
-                            r_clean = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in data_dict['r']]
-                            ax.plot(t, r_clean, label="Resistance (Ω)", **kw_r)
+                        _plot_traces_ordered(ax)
 
                         if show_title and title_text:
                             ax.set_title(title_text, loc=title_align, fontsize=12, fontweight="bold", color=fg_text)
@@ -3524,8 +4288,16 @@ class LABHPControllerV5(QMainWindow):
                         if show_legend and legend_loc != "Hidden":
                             ax.legend(loc=mpl_loc, facecolor=bg_leg, edgecolor=edge_leg, labelcolor=fg_text)
 
+                        if show_watermark and watermark_text:
+                            fig.text(0.98, 0.012, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
+
                         fig.tight_layout()
-                        fig.savefig(filepath, format="png", dpi=export_dpi, facecolor=bg_fig)
+                        save_kw = {"format": "png", "dpi": export_dpi}
+                        if transparent_bg:
+                            save_kw["transparent"] = True
+                        else:
+                            save_kw["facecolor"] = bg_fig
+                        fig.savefig(filepath, **save_kw)
                         plt.close(fig)
                         exported = True
                     except Exception:
@@ -3537,7 +4309,7 @@ class LABHPControllerV5(QMainWindow):
                     if not ok:
                         raise RuntimeError("Failed to write PNG image file")
 
-            # 2. JPEG Raster Image (Solid RGB background)
+            # 2. JPEG Raster Image
             elif ext in [".jpg", ".jpeg"]:
                 exported = False
                 if data_dict and data_dict.get('t'):
@@ -3552,13 +4324,7 @@ class LABHPControllerV5(QMainWindow):
                         if show_x_grid or show_y_grid:
                             ax.grid(True, linestyle="--", alpha=0.35, color=color_grid)
 
-                        t = data_dict.get('t', [])
-                        if 'v' in data_dict and data_dict['v']: ax.plot(t, data_dict['v'], label="Voltage (V)", **kw_v)
-                        if 'i' in data_dict and data_dict['i']: ax.plot(t, data_dict['i'], label="Current (A)", **kw_i)
-                        if 'p' in data_dict and data_dict['p']: ax.plot(t, data_dict['p'], label="Power (W)", **kw_p)
-                        if 'r' in data_dict and data_dict['r']:
-                            r_clean = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in data_dict['r']]
-                            ax.plot(t, r_clean, label="Resistance (Ω)", **kw_r)
+                        _plot_traces_ordered(ax)
 
                         if show_title and title_text:
                             ax.set_title(title_text, loc=title_align, fontsize=12, fontweight="bold", color=fg_text)
@@ -3567,6 +4333,9 @@ class LABHPControllerV5(QMainWindow):
 
                         if show_legend and legend_loc != "Hidden":
                             ax.legend(loc=mpl_loc, facecolor=bg_leg, edgecolor=edge_leg, labelcolor=fg_text)
+
+                        if show_watermark and watermark_text:
+                            fig.text(0.98, 0.012, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
 
                         fig.tight_layout()
                         fig.savefig(filepath, format="jpeg", dpi=export_dpi, facecolor=bg_fig)
@@ -3586,12 +4355,16 @@ class LABHPControllerV5(QMainWindow):
             # 3. SVG Vector Graphic
             elif ext == ".svg":
                 exported = False
-                # Attempt A: Matplotlib clean vector SVG with presentation options
                 if data_dict and data_dict.get('t'):
                     try:
                         import matplotlib.pyplot as plt
-                        fig, ax = plt.subplots(figsize=(10.5, 6), facecolor=bg_fig)
-                        ax.set_facecolor(bg_ax)
+                        fig, ax = plt.subplots(figsize=(10.5, 6), facecolor=bg_fig if not transparent_bg else "none")
+                        if transparent_bg:
+                            fig.patch.set_alpha(0.0)
+                            ax.patch.set_alpha(0.0)
+                        else:
+                            ax.set_facecolor(bg_ax)
+
                         ax.tick_params(colors=fg_text)
                         for spine in ax.spines.values():
                             spine.set_color(color_grid)
@@ -3599,13 +4372,7 @@ class LABHPControllerV5(QMainWindow):
                         if show_x_grid or show_y_grid:
                             ax.grid(True, linestyle="--", alpha=0.35, color=color_grid)
 
-                        t = data_dict.get('t', [])
-                        if 'v' in data_dict and data_dict['v']: ax.plot(t, data_dict['v'], label="Voltage (V)", **kw_v)
-                        if 'i' in data_dict and data_dict['i']: ax.plot(t, data_dict['i'], label="Current (A)", **kw_i)
-                        if 'p' in data_dict and data_dict['p']: ax.plot(t, data_dict['p'], label="Power (W)", **kw_p)
-                        if 'r' in data_dict and data_dict['r']:
-                            r_clean = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in data_dict['r']]
-                            ax.plot(t, r_clean, label="Resistance (Ω)", **kw_r)
+                        _plot_traces_ordered(ax)
 
                         if show_title and title_text:
                             ax.set_title(title_text, loc=title_align, fontsize=12, fontweight="bold", color=fg_text)
@@ -3615,14 +4382,21 @@ class LABHPControllerV5(QMainWindow):
                         if show_legend and legend_loc != "Hidden":
                             ax.legend(loc=mpl_loc, facecolor=bg_leg, edgecolor=edge_leg, labelcolor=fg_text)
 
+                        if show_watermark and watermark_text:
+                            fig.text(0.98, 0.012, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
+
                         fig.tight_layout()
-                        fig.savefig(filepath, format="svg", facecolor=bg_fig)
+                        save_kw = {"format": "svg"}
+                        if transparent_bg:
+                            save_kw["transparent"] = True
+                        else:
+                            save_kw["facecolor"] = bg_fig
+                        fig.savefig(filepath, **save_kw)
                         plt.close(fig)
                         exported = True
                     except Exception:
                         exported = False
 
-                # Attempt B: pyqtgraph SVGExporter
                 if not exported and HAVE_PYQTGRAPH and hasattr(plot_widget, 'plotItem'):
                     try:
                         import pyqtgraph.exporters
@@ -3632,7 +4406,6 @@ class LABHPControllerV5(QMainWindow):
                     except Exception:
                         exported = False
 
-                # Attempt C: QSvgGenerator
                 if not exported and QSvgGenerator is not None:
                     try:
                         gen = QSvgGenerator()
@@ -3653,12 +4426,16 @@ class LABHPControllerV5(QMainWindow):
             # 4. PDF Vector Document
             elif ext == ".pdf":
                 exported = False
-                # Attempt A: Clean publication vector PDF via Matplotlib
                 if data_dict and data_dict.get('t'):
                     try:
                         import matplotlib.pyplot as plt
-                        fig, ax = plt.subplots(figsize=(11, 7), facecolor=bg_fig, dpi=export_dpi)
-                        ax.set_facecolor(bg_ax)
+                        fig, ax = plt.subplots(figsize=(11, 7), facecolor=bg_fig if not transparent_bg else "none", dpi=export_dpi)
+                        if transparent_bg:
+                            fig.patch.set_alpha(0.0)
+                            ax.patch.set_alpha(0.0)
+                        else:
+                            ax.set_facecolor(bg_ax)
+
                         ax.tick_params(colors=fg_text)
                         for spine in ax.spines.values():
                             spine.set_color(color_grid)
@@ -3666,13 +4443,7 @@ class LABHPControllerV5(QMainWindow):
                         if show_x_grid or show_y_grid:
                             ax.grid(True, linestyle="--", alpha=0.4, color=color_grid)
 
-                        t = data_dict.get('t', [])
-                        if 'v' in data_dict and data_dict['v']: ax.plot(t, data_dict['v'], label="Voltage (V)", **kw_v)
-                        if 'i' in data_dict and data_dict['i']: ax.plot(t, data_dict['i'], label="Current (A)", **kw_i)
-                        if 'p' in data_dict and data_dict['p']: ax.plot(t, data_dict['p'], label="Power (W)", **kw_p)
-                        if 'r' in data_dict and data_dict['r']:
-                            r_clean = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in data_dict['r']]
-                            ax.plot(t, r_clean, label="Resistance (Ω)", **kw_r)
+                        _plot_traces_ordered(ax)
 
                         if show_title and title_text:
                             ax.set_title(title_text, loc=title_align, fontsize=13, fontweight="bold", color=fg_text)
@@ -3682,14 +4453,21 @@ class LABHPControllerV5(QMainWindow):
                         if show_legend and legend_loc != "Hidden":
                             ax.legend(loc=mpl_loc, facecolor=bg_leg, edgecolor=edge_leg, labelcolor=fg_text)
 
+                        if show_watermark and watermark_text:
+                            fig.text(0.98, 0.012, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
+
                         fig.tight_layout()
-                        fig.savefig(filepath, format="pdf", dpi=export_dpi, facecolor=bg_fig)
+                        save_kw = {"format": "pdf", "dpi": export_dpi}
+                        if transparent_bg:
+                            save_kw["transparent"] = True
+                        else:
+                            save_kw["facecolor"] = bg_fig
+                        fig.savefig(filepath, **save_kw)
                         plt.close(fig)
                         exported = True
                     except Exception:
                         exported = False
 
-                # Attempt B: Native Qt QPdfWriter
                 if not exported:
                     writer = QPdfWriter(filepath)
                     writer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
@@ -3704,6 +4482,13 @@ class LABHPControllerV5(QMainWindow):
                     painter.drawPixmap(x, y, scaled)
                     painter.end()
                     exported = True
+
+            # Generate companion .meta file if requested
+            if self.plot_settings.get("export_companion_meta", True) and data_dict:
+                try:
+                    generate_companion_metadata(filepath, self.plot_settings, data_dict)
+                except Exception as meta_err:
+                    logger.warning(f"Failed to generate companion .meta file: {meta_err}")
 
             self.status_bar.showMessage(f"Plot exported successfully -> {Path(filepath).name}")
             QMessageBox.information(self, "Export Successful", f"Plot successfully saved to:\n{filepath}")
@@ -3740,6 +4525,244 @@ class LABHPControllerV5(QMainWindow):
         stem = Path(self.current_loaded_csv).stem if self.current_loaded_csv else "session"
         default_name = f"{stem}_analytics_{datetime.date.today().strftime('%Y%m%d')}.png"
         self._export_plot("Historical Session Analytics Plot", default_name, widget, data)
+
+    def _batch_export_live(self):
+        data = {
+            't': list(self.history_t),
+            'v': list(self.history_v) if self.chk_show_v.isChecked() else [],
+            'i': list(self.history_i) if self.chk_show_i.isChecked() else [],
+            'p': list(self.history_p) if self.chk_show_p.isChecked() else [],
+        }
+        default_prefix = f"labhp_live_batch_{datetime.date.today().strftime('%Y%m%d_%H%M%S')}"
+        self._run_batch_export(default_prefix, data, is_live=True)
+
+    def _batch_export_historical(self):
+        if not self.hist_t:
+            QMessageBox.information(
+                self, "No Historical Data",
+                "No session data is currently loaded to export.\nLoad a CSV file or complete a logging session first."
+            )
+            return
+        data = {
+            't': self.hist_t,
+            'v': self.hist_v if self.chk_hist_v.isChecked() else [],
+            'i': self.hist_i if self.chk_hist_i.isChecked() else [],
+            'p': self.hist_p if self.chk_hist_p.isChecked() else [],
+            'r': self.hist_r if self.chk_hist_r.isChecked() else [],
+        }
+        stem = Path(self.current_loaded_csv).stem if self.current_loaded_csv else "session"
+        default_prefix = f"{stem}_pub_batch_{datetime.date.today().strftime('%Y%m%d')}"
+        self._run_batch_export(default_prefix, data, is_live=False)
+
+    def _run_batch_export(self, default_prefix: str, data_dict: dict, is_live: bool = False):
+        t = data_dict.get('t', [])
+        if not t:
+            QMessageBox.warning(self, "No Data", "No data points available for batch export.")
+            return
+
+        active_channels = []
+        ch_meta = [
+            ('v', "Voltage (V)", "Voltage", "V", "#38bdf8", "#0284c7"),
+            ('i', "Current (A)", "Current", "A", "#4ade80", "#16a34a"),
+            ('p', "Power (W)", "Power", "W", "#fbbf24", "#d97706"),
+            ('r', "Resistance (Ω)", "Resistance", "Ω", "#c084fc", "#9333ea"),
+        ]
+        for k, label, name, unit, col_dark, col_light in ch_meta:
+            if k in data_dict and data_dict[k]:
+                active_channels.append((k, label, name, unit, col_dark, col_light))
+
+        if not active_channels:
+            QMessageBox.warning(self, "No Active Traces", "No channels are currently active to export.")
+            return
+
+        dlg = BatchExportDialog(self, default_prefix)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        opts = dlg.get_options()
+        out_dir = Path(opts["dir"])
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Directory Error", f"Cannot access export directory:\n{e}")
+            return
+
+        prefix = opts["prefix"] or "export"
+        ext = opts["ext"]
+        dpi = opts["dpi"]
+        multipanel = opts["multipanel"]
+        is_dark = (opts["theme"] == "Dark Mode (Slate)") or (opts["theme"] == "Match Active GUI Theme" and self.current_theme == "dark")
+        gen_meta = opts["generate_meta"]
+        watermark = opts["watermark"]
+        transparent = opts["transparent"]
+        watermark_text = self.plot_settings.get("watermark_text", "ETPS LAB-HP 41000 Telemetry")
+        lw = float(self.plot_settings.get("line_width", 2.0))
+        plot_style = self.plot_settings.get("plot_style", "Continuous: Solid Line (Default)")
+        marker_size = int(self.plot_settings.get("marker_size", 6))
+
+        bg_fig = "none" if transparent else ("#0f1117" if is_dark else "#f8fafc")
+        bg_ax = "none" if transparent else ("#171922" if is_dark else "#ffffff")
+        fg_text = "#f1f5f9" if is_dark else "#0f172a"
+        color_grid = "#282c37" if is_dark else "#e2e8f0"
+
+        exported_files = []
+
+        try:
+            import matplotlib.pyplot as plt
+
+            if ext == ".pgf":
+                if multipanel:
+                    out_path = str(out_dir / f"{prefix}_multipanel.pgf")
+                    export_tikz_pgf(out_path, data_dict, self.plot_settings, is_dark)
+                    exported_files.append(out_path)
+                else:
+                    for k, label, name, unit, _, _ in active_channels:
+                        sub_data = {'t': t, k: data_dict[k]}
+                        out_path = str(out_dir / f"{prefix}_{name.lower()}.pgf")
+                        export_tikz_pgf(out_path, sub_data, self.plot_settings, is_dark)
+                        exported_files.append(out_path)
+            else:
+                if multipanel:
+                    n_panels = len(active_channels)
+                    fig, axes = plt.subplots(
+                        nrows=n_panels, ncols=1,
+                        figsize=(11, 2.6 * n_panels + 1.2),
+                        sharex=True,
+                        facecolor=bg_fig if not transparent else "none",
+                        dpi=dpi
+                    )
+                    if n_panels == 1:
+                        axes = [axes]
+
+                    if transparent:
+                        fig.patch.set_alpha(0.0)
+
+                    title_str = self.plot_settings.get("title", "LAB-HP 41000 Session Telemetry")
+                    if self.plot_settings.get("show_title", True) and title_str:
+                        fig.suptitle(title_str, fontsize=13, fontweight="bold", color=fg_text)
+
+                    for idx, (k, label, name, unit, col_dark, col_light) in enumerate(active_channels):
+                        ax = axes[idx]
+                        col = col_dark if is_dark else col_light
+                        kw = get_matplotlib_plot_kwargs(col, lw, plot_style, marker_size)
+                        ax.set_facecolor(bg_ax if not transparent else "none")
+                        if transparent:
+                            ax.patch.set_alpha(0.0)
+                        ax.tick_params(colors=fg_text)
+                        for spine in ax.spines.values():
+                            spine.set_color(color_grid)
+                        ax.grid(True, linestyle="--", alpha=0.35, color=color_grid)
+
+                        y_vals = data_dict[k]
+                        if k == 'r':
+                            y_vals = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in y_vals]
+                        ax.plot(t, y_vals, label=label, **kw)
+                        ax.set_ylabel(f"{name} ({unit})", fontsize=10, color=fg_text)
+
+                        if self.plot_settings.get("auto_limits_percentile"):
+                            lims = calculate_percentile_limits({k: y_vals})
+                            if lims:
+                                ax.set_ylim(lims[0], lims[1])
+
+                    axes[-1].set_xlabel(f"{self.plot_settings.get('x_label', 'Elapsed Time')} ({self.plot_settings.get('x_unit', 's')})", fontsize=10, color=fg_text)
+
+                    if watermark and watermark_text:
+                        fig.text(0.98, 0.012, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
+
+                    fig.tight_layout()
+                    out_path = str(out_dir / f"{prefix}_multipanel{ext}")
+                    save_kwargs = {"dpi": dpi}
+                    if transparent:
+                        save_kwargs["transparent"] = True
+                    else:
+                        save_kwargs["facecolor"] = bg_fig
+                    fig.savefig(out_path, **save_kwargs)
+                    plt.close(fig)
+                    exported_files.append(out_path)
+
+                else:
+                    for k, label, name, unit, col_dark, col_light in active_channels:
+                        fig, ax = plt.subplots(figsize=(10, 5.5), facecolor=bg_fig if not transparent else "none", dpi=dpi)
+                        if transparent:
+                            fig.patch.set_alpha(0.0)
+                            ax.patch.set_alpha(0.0)
+                        col = col_dark if is_dark else col_light
+                        kw = get_matplotlib_plot_kwargs(col, lw, plot_style, marker_size)
+                        ax.set_facecolor(bg_ax if not transparent else "none")
+                        ax.tick_params(colors=fg_text)
+                        for spine in ax.spines.values():
+                            spine.set_color(color_grid)
+                        ax.grid(True, linestyle="--", alpha=0.35, color=color_grid)
+
+                        y_vals = data_dict[k]
+                        if k == 'r':
+                            y_vals = [r if (r is not None and not math.isinf(r) and not math.isnan(r) and r < 1e6) else 0.0 for r in y_vals]
+                        ax.plot(t, y_vals, label=label, **kw)
+                        ax.set_title(f"{name} vs Time", fontsize=11, fontweight="bold", color=fg_text)
+                        ax.set_xlabel(f"{self.plot_settings.get('x_label', 'Elapsed Time')} ({self.plot_settings.get('x_unit', 's')})", fontsize=10, color=fg_text)
+                        ax.set_ylabel(f"{name} ({unit})", fontsize=10, color=fg_text)
+
+                        if self.plot_settings.get("auto_limits_percentile"):
+                            lims = calculate_percentile_limits({k: y_vals})
+                            if lims:
+                                ax.set_ylim(lims[0], lims[1])
+
+                        if watermark and watermark_text:
+                            fig.text(0.98, 0.015, watermark_text, fontsize=8, color=fg_text, alpha=0.55, ha="right", va="bottom")
+
+                        fig.tight_layout()
+                        out_path = str(out_dir / f"{prefix}_{name.lower()}{ext}")
+                        save_kwargs = {"dpi": dpi}
+                        if transparent:
+                            save_kwargs["transparent"] = True
+                        else:
+                            save_kwargs["facecolor"] = bg_fig
+                        fig.savefig(out_path, **save_kwargs)
+                        plt.close(fig)
+                        exported_files.append(out_path)
+
+            if gen_meta:
+                meta_path = generate_companion_metadata(str(out_dir / f"{prefix}.meta"), self.plot_settings, data_dict)
+                exported_files.append(meta_path)
+
+            self.status_bar.showMessage(f"Batch export completed: {len(exported_files)} file(s) generated.")
+            file_list_str = "\n".join([f"• {Path(f).name}" for f in exported_files])
+            QMessageBox.information(self, "Batch Export Successful", f"Successfully exported {len(exported_files)} file(s) to:\n{out_dir}\n\nFiles:\n{file_list_str}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Batch Export Failed", f"An error occurred during batch export:\n{e}")
+
+    def _toggle_publication_mode(self):
+        """Toggles Publication Mode: freezes style and prevents live auto-range jitter."""
+        self.publication_mode = not getattr(self, "publication_mode", False)
+        is_active = self.publication_mode
+
+        if hasattr(self, 'btn_pub_mode_live'):
+            self.btn_pub_mode_live.setChecked(is_active)
+            if is_active:
+                self.btn_pub_mode_live.setText("📌 Pub Mode (ON)")
+                self.btn_pub_mode_live.setStyleSheet("color: #4ade80; font-weight: bold; border: 1px solid #16a34a;")
+            else:
+                self.btn_pub_mode_live.setText("📌 Pub Mode")
+                self.btn_pub_mode_live.setStyleSheet("")
+
+        if hasattr(self, 'btn_pub_mode_hist'):
+            self.btn_pub_mode_hist.setChecked(is_active)
+            if is_active:
+                self.btn_pub_mode_hist.setText("📌 Pub Mode (ON)")
+                self.btn_pub_mode_hist.setStyleSheet("color: #4ade80; font-weight: bold; border: 1px solid #16a34a;")
+            else:
+                self.btn_pub_mode_hist.setText("📌 Pub Mode")
+                self.btn_pub_mode_hist.setStyleSheet("")
+
+        if is_active:
+            self.status_bar.showMessage("Publication Mode ACTIVE: Live refresh frozen for steady inspection and publication export.")
+        else:
+            self.status_bar.showMessage("Publication Mode DEACTIVATED: Resumed live oscilloscope streaming.")
+            if HAVE_PYQTGRAPH and hasattr(self, 'plot_widget'):
+                if self.chk_show_v.isChecked(): self.curve_v.setData(self.history_t, self.history_v)
+                if self.chk_show_i.isChecked(): self.curve_i.setData(self.history_t, self.history_i)
+                if self.chk_show_p.isChecked(): self.curve_p.setData(self.history_t, self.history_p)
 
     # -------------------------------------------------------------------------
     # TERMINAL & SCANNER ACTIONS

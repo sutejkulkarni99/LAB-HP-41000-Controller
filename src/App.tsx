@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Zap, 
   Activity, 
@@ -10,8 +10,6 @@ import {
   Terminal, 
   ShieldCheck, 
   Sliders, 
-  Cpu,
-  ArrowUpRight,
   Code
 } from 'lucide-react';
 
@@ -181,28 +179,65 @@ export default function App() {
             <div className={`p-6 rounded-xl border ${isDark ? 'bg-[#16181d] border-[#272a31]' : 'bg-white border-slate-200 shadow-sm'}`}>
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <Download className="w-5 h-5 text-sky-400" />
-                Multi-Format Export Engine
+                Publication Suite & Multi-Format Export Engine
               </h2>
               <p className={`text-sm mb-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Both live oscilloscope telemetry waveforms and historical session CSV logs support 4 high-resolution publication formats:
+                Both live oscilloscope telemetry waveforms and historical session CSV logs support 5 publication formats:
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
                   <span className="font-bold text-sky-400 block mb-1">PDF (.pdf)</span>
-                  <p className="text-xs text-slate-400">Crisp vector documents at 300/600 DPI, styled for journal and lab test reports.</p>
+                  <p className="text-xs text-slate-400">Crisp vector documents at 300/600 DPI, styled with optional transparent backgrounds.</p>
                 </div>
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="font-bold text-emerald-400 block mb-1">PNG (.png)</span>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="font-bold text-emerald-400 block mb-1">LaTeX (.pgf / .tex)</span>
+                  <p className="text-xs text-slate-400">Native TikZ / pgfplots macros for direct compilation in IEEE and ACM LaTeX papers.</p>
+                </div>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="font-bold text-amber-400 block mb-1">PNG (.png)</span>
                   <p className="text-xs text-slate-400">High-resolution lossless raster renderings with customized titles, axes, and line weights.</p>
                 </div>
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="font-bold text-amber-400 block mb-1">JPEG (.jpg, .jpeg)</span>
-                  <p className="text-xs text-slate-400">RGB888 solid background images with 95% quality for presentations and web reports.</p>
-                </div>
-                <div className={`p-4 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
                   <span className="font-bold text-purple-400 block mb-1">SVG (.svg)</span>
-                  <p className="text-xs text-slate-400">Scalable vector graphics via Matplotlib and QSvgGenerator for infinite zoom without blur.</p>
+                  <p className="text-xs text-slate-400">Scalable vector graphics via Matplotlib and QSvgGenerator for infinite resolution.</p>
+                </div>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="font-bold text-rose-400 block mb-1">Metadata (.meta)</span>
+                  <p className="text-xs text-slate-400">Automatic JSON companion sidecar containing instrument serial, limits, and time bounds.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Publication Features Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`p-5 rounded-xl border ${isDark ? 'bg-[#16181d] border-[#272a31]' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <h3 className="text-base font-bold mb-3 flex items-center gap-2 text-sky-400">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  📦 Batch Multi-Channel Export
+                </h3>
+                <p className="text-xs text-slate-400 mb-3">
+                  Click <strong>📦 Batch Export...</strong> to automatically export all active traces (Voltage, Current, Power, Resistance) as either a unified multi-panel subplot figure or standalone individual image files in one operation.
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">Multi-Panel Subplots</span>
+                  <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">Individual Channels</span>
+                  <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">Selectable DPI</span>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-xl border ${isDark ? 'bg-[#16181d] border-[#272a31]' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <h3 className="text-base font-bold mb-3 flex items-center gap-2 text-emerald-400">
+                  <ShieldCheck className="w-4 h-4" />
+                  📌 Publication Mode Toggle
+                </h3>
+                <p className="text-xs text-slate-400 mb-3">
+                  Use the <strong>📌 Pub Mode</strong> toggle to freeze active live chart rendering, prevent auto-range axis jitter, and lock the view for steady, publication-grade figure inspection and capture.
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Freeze Stream</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Anti-Jitter Lock</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Dual-Toolbar Sync</span>
                 </div>
               </div>
             </div>
@@ -211,24 +246,20 @@ export default function App() {
             <div className={`p-6 rounded-xl border ${isDark ? 'bg-[#16181d] border-[#272a31]' : 'bg-white border-slate-200 shadow-sm'}`}>
               <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                 <Settings2 className="w-5 h-5 text-sky-400" />
-                Plot Presentation Customization Dialog (⚙ Settings...)
+                Plot Presentation & Smart Layout (⚙ Settings...)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <strong className="text-sky-400">X and Y Axis Customization:</strong>
-                  <p className="text-xs mt-1 text-slate-400">Edit titles (e.g. "Elapsed Time", "Process Variable") and engineering units ("s", "min", "V", "A", "W"). Reflects in UI and exports.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-sky-400">Publication Presets:</strong>
+                  <p className="text-xs mt-1 text-slate-400">One-click standard formatting for IEEE Transactions, Nature / Science, ACM Conference, Clean White, and Dark Lab.</p>
                 </div>
-                <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <strong className="text-emerald-400">Legend Position Control:</strong>
-                  <p className="text-xs mt-1 text-slate-400">6 flexible anchors: Top-Right, Top-Left, Bottom-Right, Bottom-Left, Top-Center, Bottom-Center, or Hidden to avoid overlapping active waveforms.</p>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-emerald-400">Smart Density Legend:</strong>
+                  <p className="text-xs mt-1 text-slate-400">"Auto (Lowest Density)" analyzes signal histograms to place the legend in the quadrant with the fewest trace crossings.</p>
                 </div>
-                <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <strong className="text-amber-400">Title & Alignment:</strong>
-                  <p className="text-xs mt-1 text-slate-400">Custom chart header with Left, Center, or Right alignment and toggleable visibility.</p>
-                </div>
-                <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
-                  <strong className="text-purple-400">Trace Width, Grids & Theme:</strong>
-                  <p className="text-xs mt-1 text-slate-400">Configurable 1.0–3.0 px pen thickness, X/Y grid filters, and selectable export theme (Dark, Light, or GUI sync).</p>
+                <div className={`p-3.5 rounded-lg border ${isDark ? 'bg-[#1f232b] border-[#2e3340]' : 'bg-slate-50 border-slate-200'}`}>
+                  <strong className="text-amber-400">Percentile Axis Limits:</strong>
+                  <p className="text-xs mt-1 text-slate-400">5–95% percentile scaling clips transient noise spikes while preserving 10% margin on true signal dynamics.</p>
                 </div>
               </div>
             </div>
