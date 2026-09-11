@@ -10,12 +10,29 @@ try:
     from PyQt6.QtCore import QThread, pyqtSignal
 except ImportError:
     class QThread:
-        def __init__(self, parent=None): pass
-        def isRunning(self): return False
+        def __init__(self, parent=None):
+            self._th = None
+        def isRunning(self):
+            return self._th.is_alive() if self._th else False
+        def start(self):
+            self._th = threading.Thread(target=self.run, daemon=True)
+            self._th.start()
+        def wait(self, msecs=None):
+            if self._th:
+                self._th.join(timeout=(msecs / 1000.0) if msecs else None)
+        def quit(self):
+            pass
+
     def pyqtSignal(*args, **kwargs):
         class SignalStub:
-            def connect(self, slot): pass
-            def emit(self, *a, **kw): pass
+            def __init__(self):
+                self._slots = []
+            def connect(self, slot):
+                self._slots.append(slot)
+            def emit(self, *a, **kw):
+                for s in self._slots:
+                    try: s(*a, **kw)
+                    except Exception: pass
         return SignalStub()
 
 from ..core.session_clock import SessionClock

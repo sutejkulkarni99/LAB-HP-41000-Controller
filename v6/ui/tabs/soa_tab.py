@@ -1,5 +1,9 @@
 """SOATab — Safe Operating Area (SOA) power envelope visualizer with responsive scroll area."""
-import numpy as np
+try:
+    import numpy as np
+    HAVE_NUMPY = True
+except ImportError:
+    HAVE_NUMPY = False
 from typing import Dict, Any
 
 try:
@@ -88,8 +92,12 @@ class SOATab(QWidget):
             self.soa_plot.setYRange(0, 8)
 
             # Draw hyperbolic 4 kW boundary: I = min(7.0, 4000 / V)
-            v_vals = np.linspace(10, 1000, 250)
-            i_boundary = np.minimum(7.0, 4000.0 / v_vals)
+            if HAVE_NUMPY:
+                v_vals = np.linspace(10, 1000, 250)
+                i_boundary = np.minimum(7.0, 4000.0 / v_vals)
+            else:
+                v_vals = [10.0 + (1000.0 - 10.0) * k / 249.0 for k in range(250)]
+                i_boundary = [min(7.0, 4000.0 / v) for v in v_vals]
             self.soa_plot.plot(
                 v_vals, i_boundary,
                 pen=pg.mkPen('#F87171', width=2, style=Qt.PenStyle.DashLine),

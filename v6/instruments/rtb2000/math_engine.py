@@ -100,8 +100,37 @@ class ScopeMathEngine:
     @staticmethod
     def compute_fft(time_arr, volt_arr) -> Tuple[Any, Any]:
         """Computes one-sided FFT spectrum magnitude in dBV or linear volts."""
-        if not HAVE_NUMPY or len(volt_arr) < 16:
-            return [], []
+        if len(volt_arr) < 4:
+            return [0.0], [0.0]
+
+        if not HAVE_NUMPY:
+            # Pure Python DFT fallback for environments without numpy
+            n = len(volt_arr)
+            step = max(1, n // 128)
+            v_sub = list(volt_arr[::step])
+            t_sub = list(time_arr[::step])
+            m = len(v_sub)
+            dt = abs(t_sub[-1] - t_sub[0]) / max(1, m - 1) if m > 1 else 1e-3
+            mean_v = sum(v_sub) / m
+            num_bins = max(1, min(64, m // 2))
+            freqs = []
+            mag_dbv = []
+            for k in range(num_bins):
+                f = k / (m * dt) if dt > 0 else float(k)
+                re_sum = 0.0
+                im_sum = 0.0
+                for j in range(m):
+                    w = 0.5 * (1.0 - math.cos(2.0 * math.pi * j / (m - 1))) if m > 1 else 1.0
+                    val = (v_sub[j] - mean_v) * w
+                    angle = 2.0 * math.pi * k * j / m
+                    re_sum += val * math.cos(angle)
+                    im_sum -= val * math.sin(angle)
+                mag_lin = (2.0 / m) * math.sqrt(re_sum * re_sum + im_sum * im_sum)
+                rms_val = max(1e-9, mag_lin / math.sqrt(2.0))
+                dbv = 20.0 * math.log10(rms_val)
+                freqs.append(round(f, 2))
+                mag_dbv.append(round(dbv, 2))
+            return freqs, mag_dbv
 
         t = np.asarray(time_arr)
         v = np.asarray(volt_arr)

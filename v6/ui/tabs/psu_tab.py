@@ -73,11 +73,13 @@ class PSUTab(QWidget):
     set_ovp_requested = pyqtSignal(float)
     output_state_requested = pyqtSignal(bool)
     operating_mode_requested = pyqtSignal(str)
+    local_mode_requested = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.is_connected = False
         self.is_local = False
+        self.output_is_on = False
         self.is_dark = True
 
         outer_layout = QVBoxLayout(self)
@@ -107,22 +109,40 @@ class PSUTab(QWidget):
         left_layout.addWidget(self.card_r)
 
         # Master Output Control Card
-        card_out = QGroupBox("Master Power Output")
+        card_out = QGroupBox("Master Power Output & Bus Control")
         out_layout = QVBoxLayout(card_out)
         out_layout.setContentsMargins(10, 12, 10, 10)
         out_layout.setSpacing(8)
 
-        self.btn_output = QPushButton("⚡ OUTPUT OFF")
-        self.btn_output.setObjectName("danger")
-        self.btn_output.setFixedHeight(48)
-        self.btn_output.setStyleSheet("font-size: 11pt; font-weight: 800; letter-spacing: 0.5px;")
-        self.btn_output.clicked.connect(self._toggle_output)
-        out_layout.addWidget(self.btn_output)
+        # Dual Bus Mode Buttons: REMOTE and LOCAL
+        mode_btn_row = QHBoxLayout()
+        mode_btn_row.setSpacing(6)
 
-        self.lbl_local_warning = QLabel("Front Panel Locked (Remote Software Control)")
-        self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #8B94AD;")
+        self.btn_remote_mode = QPushButton("⚡ REMOTE (GTR)")
+        self.btn_remote_mode.setToolTip("Set Remote Control Mode (GTR) — Enables full software control.")
+        self.btn_remote_mode.setStyleSheet("background-color: #2563EB; color: #FFFFFF; font-weight: bold; padding: 6px; border-radius: 4px;")
+        self.btn_remote_mode.clicked.connect(lambda: self.local_mode_requested.emit(False))
+        mode_btn_row.addWidget(self.btn_remote_mode)
+
+        self.btn_local_mode = QPushButton("🔒 LOCAL (GTL)")
+        self.btn_local_mode.setToolTip("Set Local Mode (GTL) — Restores front physical panel control.")
+        self.btn_local_mode.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; padding: 6px; border-radius: 4px;")
+        self.btn_local_mode.clicked.connect(lambda: self.local_mode_requested.emit(True))
+        mode_btn_row.addWidget(self.btn_local_mode)
+
+        out_layout.addLayout(mode_btn_row)
+
+        self.lbl_local_warning = QLabel("Mode: REMOTE (Software Control Active)")
+        self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #4ADE80; font-weight: bold;")
         self.lbl_local_warning.setAlignment(Qt.AlignmentFlag.AlignCenter)
         out_layout.addWidget(self.lbl_local_warning)
+
+        self.btn_output = QPushButton("⚡ OUTPUT OFF (STANDBY)")
+        self.btn_output.setObjectName("danger")
+        self.btn_output.setFixedHeight(48)
+        self.btn_output.setStyleSheet("background-color: #DC2626; color: #FFFFFF; font-size: 11pt; font-weight: 800; letter-spacing: 0.5px; border-radius: 6px;")
+        self.btn_output.clicked.connect(self._toggle_output)
+        out_layout.addWidget(self.btn_output)
 
         left_layout.addWidget(card_out)
         left_layout.addStretch()
@@ -288,8 +308,9 @@ class PSUTab(QWidget):
         self.operating_mode_requested.emit(mode)
 
     def _toggle_output(self):
-        curr = self.btn_output.property("active") == "true"
-        new_state = not curr
+        new_state = not self.output_is_on
+        self.output_is_on = new_state
+        self.update_output_state(new_state)
         self.output_state_requested.emit(new_state)
 
     def update_telemetry(self, t_sec: float, v: float, i: float, p: float, r: float):
@@ -306,14 +327,17 @@ class PSUTab(QWidget):
             self.card_r.set_value("---")
 
     def update_output_state(self, is_on: bool):
+        self.output_is_on = is_on
         if is_on:
-            self.btn_output.setText("⚡ OUTPUT ON")
+            self.btn_output.setText("⚡ OUTPUT ON (ACTIVE)")
             self.btn_output.setObjectName("success")
             self.btn_output.setProperty("active", "true")
+            self.btn_output.setStyleSheet("background-color: #16A34A; color: #FFFFFF; font-size: 11pt; font-weight: 800; letter-spacing: 0.5px; border-radius: 6px;")
         else:
-            self.btn_output.setText("⚡ OUTPUT OFF")
+            self.btn_output.setText("⚡ OUTPUT OFF (STANDBY)")
             self.btn_output.setObjectName("danger")
             self.btn_output.setProperty("active", "false")
+            self.btn_output.setStyleSheet("background-color: #DC2626; color: #FFFFFF; font-size: 11pt; font-weight: 800; letter-spacing: 0.5px; border-radius: 6px;")
         self.btn_output.style().unpolish(self.btn_output)
         self.btn_output.style().polish(self.btn_output)
 
@@ -335,6 +359,8 @@ class PSUTab(QWidget):
 
     def set_connected(self, connected: bool):
         self.is_connected = connected
+        self.btn_remote_mode.setEnabled(connected)
+        self.btn_local_mode.setEnabled(connected)
         self.btn_output.setEnabled(connected and not self.is_local)
         self.btn_apply_v.setEnabled(connected and not self.is_local)
         self.btn_apply_i.setEnabled(connected and not self.is_local)
@@ -347,11 +373,15 @@ class PSUTab(QWidget):
     def set_local_mode(self, is_local: bool):
         self.is_local = is_local
         if is_local:
-            self.lbl_local_warning.setText("Front Panel ACTIVE (Local Physical Control)")
+            self.btn_local_mode.setStyleSheet("background-color: #F59E0B; color: #000000; font-weight: bold; padding: 6px; border-radius: 4px;")
+            self.btn_remote_mode.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; padding: 6px; border-radius: 4px;")
+            self.lbl_local_warning.setText("Mode: LOCAL (Front Physical Panel Active)")
             self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #F59E0B; font-weight: bold;")
         else:
-            self.lbl_local_warning.setText("Front Panel Locked (Remote Software Control)")
-            self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #8B94AD;")
+            self.btn_remote_mode.setStyleSheet("background-color: #2563EB; color: #FFFFFF; font-weight: bold; padding: 6px; border-radius: 4px;")
+            self.btn_local_mode.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; padding: 6px; border-radius: 4px;")
+            self.lbl_local_warning.setText("Mode: REMOTE (Software Control Active)")
+            self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #4ADE80; font-weight: bold;")
         self.set_connected(self.is_connected)
 
     def set_theme(self, is_dark: bool):

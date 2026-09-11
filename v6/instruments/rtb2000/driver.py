@@ -293,83 +293,147 @@ class RTB2000Driver:
 
         try:
             val_str = resp.split(",")[-1].strip()
-            return float(val_str)
+            val = float(val_str)
+            # RTB2000 returns 9.91e37 when measurement is unavailable or overrange
+            if val > 1e30 or math.isnan(val) or math.isinf(val):
+                return 0.0
+            return val
         except Exception:
             return 0.0
+
+    def send_scpi(self, cmd: str) -> str:
+        """Execute arbitrary SCPI command, returning response if query, or '[OK]'."""
+        cmd = cmd.strip()
+        if "?" in cmd:
+            return self.query(cmd)
+        else:
+            self.send(cmd)
+            return "[OK]"
 
     # Waveform Transfer
     def fetch_channel_waveform(self, ch: int) -> Tuple[Any, Any]:
         """
         Reads channel waveform data and returns (time_array, volt_array).
-        Configures ASCII export, synchronizes with *OPC?, and queries :CHANnel<n>:DATA:HEADer? and :CHANnel<n>:DATA?
-        Applies vertical Y-axis scaling: v = (raw - yorigin) * yincrement.
+        Supports IEEE-488.2 binary block format (#<d><len><bytes>) and ASCII comma-separated format.
+        Applies vertical Y-axis scaling: v = raw * yincrement + yorigin.
         """
         with self._lock:
-            # Re-send :FORMat:DATA ASCii before header query
-            self.send(":FORMat:DATA ASCii")
-
-            # Parse :CHANnel<n>:DATA:HEADer?
-            data_hdr = ""
+            # Synchronize before read
             try:
-                data_hdr = self.query(f":CHANnel{ch}:DATA:HEADer?")
+                self.query("*OPC?", timeout=5.0)
             except Exception:
-                data_hdr = ""
+                pass
 
-            x_start = -0.005
-            x_stop = 0.005
-            num_pts = 1000
-            yincrement: Optional[float] = None
-            yorigin: Optional[float] = None
+            # Query physical scaling parameters
+            yincrement = 1.0
+            yorigin = 0.0
+            xincrement = 1e-4
+            xorigin = -0.005
 
-            header_parsed = False
-            if data_hdr:
-                parts = [p.strip() for p in data_hdr.split(",")]
+            try:
+                resp_yinc = self.query(f":CHANnel{ch}:DATA:YINC?")
+                if resp_yinc:
+                    yincrement = float(resp_yinc.split(",")[-1].strip())
+            except Exception:
                 try:
-                    # Field order: xstart, xstop, count, xincrement, xorigin, yincrement, yorigin
-                    if len(parts) >= 7:
-                        x_start = float(parts[0])
-                        x_stop = float(parts[1])
-                        num_pts = int(float(parts[2]))
-                        yincrement = float(parts[5])
-                        yorigin = float(parts[6])
-                        header_parsed = True
-                    elif len(parts) >= 3:
-                        x_start = float(parts[0])
-                        x_stop = float(parts[1])
-                        num_pts = int(float(parts[2]))
-                except (IndexError, ValueError):
+                    resp_yinc = self.query(f":CHANnel{ch}:DATA:YINCrement?")
+                    if resp_yinc:
+                        yincrement = float(resp_yinc.split(",")[-1].strip())
+                except Exception:
                     pass
 
-            # Fall back to querying :CHANnel<n>:DATA:YINCrement? and :YORigin? separately
-            if not header_parsed or yincrement is None or yorigin is None:
+            try:
+                resp_yorg = self.query(f":CHANnel{ch}:DATA:YOR?")
+                if resp_yorg:
+                    yorigin = float(resp_yorg.split(",")[-1].strip())
+            except Exception:
                 try:
-                    resp_inc = self.query(f":CHANnel{ch}:DATA:YINCrement?")
-                    yincrement = float(resp_inc) if resp_inc else 1.0
+                    resp_yorg = self.query(f":CHANnel{ch}:DATA:YORigin?")
+                    if resp_yorg:
+                        yorigin = float(resp_yorg.split(",")[-1].strip())
                 except Exception:
-                    yincrement = 1.0
+                    pass
 
+            try:
+                resp_xinc = self.query(f":CHANnel{ch}:DATA:XINC?")
+                if resp_xinc:
+                    xincrement = float(resp_xinc.split(",")[-1].strip())
+            except Exception:
                 try:
-                    resp_orig = self.query(f":CHANnel{ch}:DATA:YORigin?")
-                    yorigin = float(resp_orig) if resp_orig else 0.0
+                    resp_xinc = self.query(f":CHANnel{ch}:DATA:XINCrement?")
+                    if resp_xinc:
+                        xincrement = float(resp_xinc.split(",")[-1].strip())
                 except Exception:
-                    yorigin = 0.0
+                    pass
 
-            # Synchronize before read
-            self.query("*OPC?", timeout=15.0)
+            try:
+                resp_xorg = self.query(f":CHANnel{ch}:DATA:XOR?")
+                if resp_xorg:
+                    xorigin = float(resp_xorg.split(",")[-1].strip())
+            except Exception:
+                try:
+                    resp_xorg = self.query(f":CHANnel{ch}:DATA:XORigin?")
+                    if resp_xorg:
+                        xorigin = float(resp_xorg.split(",")[-1].strip())
+                except Exception:
+                    pass
 
-            # Query data
+            # Query waveform data
             self.send(f":CHANnel{ch}:DATA?")
 
             raw_resp = b""
             deadline = time.time() + self.timeout
+            expected_total = None
+
             while time.time() < deadline:
                 chunk = self.sock.recv(16384)
                 if not chunk:
                     break
                 raw_resp += chunk
-                if b"\n" in raw_resp:
+
+                # Check if IEEE-488.2 binary block header received
+                if expected_total is None and raw_resp.startswith(b"#") and len(raw_resp) >= 3:
+                    try:
+                        num_digits = int(chr(raw_resp[1]))
+                        if len(raw_resp) >= 2 + num_digits:
+                            payload_len = int(raw_resp[2:2 + num_digits].decode("ascii"))
+                            expected_total = 2 + num_digits + payload_len
+                    except Exception:
+                        pass
+
+                if expected_total is not None:
+                    if len(raw_resp) >= expected_total:
+                        break
+                elif b"\n" in raw_resp:
                     break
 
+            if not raw_resp:
+                raise RuntimeError("no waveform data received")
+
+            # 1. Parse IEEE-488.2 Binary Block Format (#<d><len><bytes>)
+            if raw_resp.startswith(b"#"):
+                try:
+                    num_digits = int(chr(raw_resp[1]))
+                    payload_len = int(raw_resp[2:2 + num_digits].decode("ascii"))
+                    payload_start = 2 + num_digits
+                    payload_bytes = raw_resp[payload_start:payload_start + payload_len]
+
+                    if HAVE_NUMPY:
+                        raw_data = np.frombuffer(payload_bytes, dtype=np.int8)
+                        num_pts = len(raw_data)
+                        v_arr = raw_data.astype(float) * yincrement + yorigin
+                        t_arr = xorigin + np.arange(num_pts) * xincrement
+                    else:
+                        raw_data = [b - 256 if b > 127 else b for b in payload_bytes]
+                        num_pts = len(raw_data)
+                        v_arr = [r * yincrement + yorigin for r in raw_data]
+                        t_arr = [xorigin + k * xincrement for k in range(num_pts)]
+
+                    return t_arr, v_arr
+                except Exception:
+                    pass
+
+            # 2. Parse ASCII comma-separated format
             text_data = raw_resp.decode("ascii", errors="ignore").strip()
             lines = [l.strip() for l in text_data.split("\n") if l.strip()]
             data_line = lines[-1] if lines else ""
@@ -387,14 +451,11 @@ class RTB2000Driver:
                 raise RuntimeError("no waveform data available")
 
             actual_n = len(volt_list)
-            # Transform each value: v = (raw - yorigin) * yincrement
             if HAVE_NUMPY:
-                t_arr = np.linspace(x_start, x_stop, actual_n)
-                raw_arr = np.array(volt_list, dtype=float)
-                v_arr = (raw_arr - yorigin) * yincrement
+                t_arr = xorigin + np.arange(actual_n) * xincrement
+                v_arr = np.array(volt_list, dtype=float)
             else:
-                dt = (x_stop - x_start) / max(1, actual_n - 1)
-                t_arr = [x_start + k * dt for k in range(actual_n)]
-                v_arr = [(raw - yorigin) * yincrement for raw in volt_list]
+                t_arr = [xorigin + k * xincrement for k in range(actual_n)]
+                v_arr = volt_list
 
             return t_arr, v_arr

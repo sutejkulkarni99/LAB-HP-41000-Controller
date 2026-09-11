@@ -64,9 +64,9 @@ class WaveformStore:
 
         if HAVE_NUMPY:
             np.savez_compressed(str(out_path), **save_dict)
+            return str(out_path)
         else:
             import json
-            fallback_path = out_path.with_suffix(".json")
             clean_dict = {}
             for k, v in data_to_save.items():
                 if hasattr(v, 'tolist'):
@@ -75,23 +75,29 @@ class WaveformStore:
                     clean_dict[k] = v
                 else:
                     clean_dict[k] = str(v)
-            with open(fallback_path, "w", encoding="utf-8") as f:
+            with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(clean_dict, f)
-            return str(fallback_path)
-
-        return str(out_path)
+            return str(out_path)
 
     @staticmethod
     def load(path: str) -> Dict[str, Any]:
-        """Loads .npz waveform file and returns dictionary of arrays and metadata."""
+        """Loads waveform file and returns dictionary of arrays and metadata."""
         p = Path(path)
         if not p.exists():
-            raise FileNotFoundError(f"Waveform archive not found: {path}")
+            if p.with_suffix(".json").exists():
+                p = p.with_suffix(".json")
+            elif p.with_suffix(".npz").exists():
+                p = p.with_suffix(".npz")
+            else:
+                raise FileNotFoundError(f"Waveform archive not found: {path}")
 
-        if p.suffix == ".json":
+        # Try JSON first
+        try:
             import json
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
+        except Exception:
+            pass
 
         if HAVE_NUMPY:
             with np.load(str(p), allow_pickle=True) as data:
@@ -104,4 +110,4 @@ class WaveformStore:
                         res[key] = val
                 return res
         else:
-            raise RuntimeError("NumPy is required to unpack .npz waveform archives.")
+            raise RuntimeError("NumPy is required to unpack binary .npz waveform archives.")

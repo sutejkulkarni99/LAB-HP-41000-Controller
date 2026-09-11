@@ -12,7 +12,7 @@ class LABHPInstrument(InstrumentBase):
     """
 
     name: str = "ETPS LAB-HP 41000"
-    short_id: str = "labhp"
+    short_id: str = "labhp_41000"
     default_port: int = 10001
     supports_waveform: bool = False
 

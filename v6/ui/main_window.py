@@ -242,18 +242,33 @@ class MainWindow(QMainWindow):
 
         # Local/Remote Mode Switch
         mode_box = QVBoxLayout()
-        mode_box.setSpacing(1)
+        mode_box.setSpacing(2)
         lbl_mode_caption = QLabel("BUS MODE")
         lbl_mode_caption.setStyleSheet("font-size: 7pt; font-weight: 700; color: #8B94AD; letter-spacing: 0.5px;")
         lbl_mode_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mode_box.addWidget(lbl_mode_caption)
 
-        self.btn_mode_toggle = QPushButton("⚡ REMOTE")
-        self.btn_mode_toggle.setObjectName("mode_remote")
-        self.btn_mode_toggle.setToolTip("Toggle between REMOTE and LOCAL control.")
-        self.btn_mode_toggle.clicked.connect(self._toggle_local_remote)
-        self.btn_mode_toggle.setEnabled(False)
-        mode_box.addWidget(self.btn_mode_toggle)
+        mode_btn_row = QHBoxLayout()
+        mode_btn_row.setSpacing(4)
+        self.btn_mode_remote = QPushButton("⚡ REMOTE")
+        self.btn_mode_remote.setObjectName("mode_remote")
+        self.btn_mode_remote.setToolTip("Switch to REMOTE control (GTR) — software has full control.")
+        self.btn_mode_remote.setStyleSheet("background-color: #2563EB; color: #FFFFFF; font-weight: bold; border-radius: 4px; padding: 4px 8px;")
+        self.btn_mode_remote.clicked.connect(lambda: self._set_local_mode(False))
+        self.btn_mode_remote.setEnabled(False)
+        mode_btn_row.addWidget(self.btn_mode_remote)
+
+        self.btn_mode_local = QPushButton("🔒 LOCAL")
+        self.btn_mode_local.setObjectName("mode_local")
+        self.btn_mode_local.setToolTip("Switch to LOCAL control (GTL) — front panel controls active.")
+        self.btn_mode_local.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; border-radius: 4px; padding: 4px 8px;")
+        self.btn_mode_local.clicked.connect(lambda: self._set_local_mode(True))
+        self.btn_mode_local.setEnabled(False)
+        mode_btn_row.addWidget(self.btn_mode_local)
+
+        self.btn_mode_toggle = self.btn_mode_remote
+
+        mode_box.addLayout(mode_btn_row)
         h_layout.addLayout(mode_box)
 
         h_layout.addSpacing(6)
@@ -278,36 +293,10 @@ class MainWindow(QMainWindow):
         self.act_theme.triggered.connect(self._toggle_theme)
         menu.addAction(self.act_theme)
 
-        self.act_sim_psu = QAction("⚡ Launch LAB-HP Simulator (:10001)", self)
-        self.act_sim_psu.triggered.connect(self._launch_psu_sim)
-        menu.addAction(self.act_sim_psu)
-
-        self.act_sim_scope = QAction("🌊 Launch RTB2000 Simulator (:5025)", self)
-        self.act_sim_scope.triggered.connect(self._launch_scope_sim)
-        menu.addAction(self.act_sim_scope)
-
         self.btn_menu.setMenu(menu)
         h_layout.addWidget(self.btn_menu)
 
         return header_card
-
-    def _launch_psu_sim(self):
-        try:
-            from ..instruments.labhp_41000.simulator import LABHPSimulator
-            sim = LABHPSimulator(port=10001)
-            sim.start()
-            self.status_bar.showMessage("LAB-HP 41000 Simulator started on port 10001.")
-        except Exception as e:
-            QMessageBox.information(self, "Simulator", f"Could not start LAB-HP Simulator:\n{e}")
-
-    def _launch_scope_sim(self):
-        try:
-            from ..instruments.rtb2000.simulator import RTB2000Simulator
-            sim = RTB2000Simulator(port=5025)
-            sim.start()
-            self.status_bar.showMessage("RTB2000 Simulator started on port 5025.")
-        except Exception as e:
-            QMessageBox.information(self, "Simulator", f"Could not start RTB2000 Simulator:\n{e}")
 
     # -------------------------------------------------------------------------
     # KEYBOARD SHORTCUTS & WIRING
@@ -327,6 +316,7 @@ class MainWindow(QMainWindow):
         self.tab_psu.set_ovp_requested.connect(self._on_psu_set_ovp)
         self.tab_psu.output_state_requested.connect(self._on_psu_set_output)
         self.tab_psu.operating_mode_requested.connect(self._on_psu_set_mode)
+        self.tab_psu.local_mode_requested.connect(self._set_local_mode)
 
         # Scope Tab Signals
         self.tab_scope.timebase_scale_requested.connect(self._on_scope_timebase_scale)
@@ -368,8 +358,10 @@ class MainWindow(QMainWindow):
             self.btn_connect_psu.setObjectName("danger")
             self.btn_connect_psu.setStyleSheet("")
             self.lbl_psu_led.setStyleSheet("color: #4ADE80; font-size: 9pt;")
-            self.btn_mode_toggle.setEnabled(True)
+            self.btn_mode_remote.setEnabled(True)
+            self.btn_mode_local.setEnabled(True)
             self.tab_psu.set_connected(True)
+            self.tab_psu.set_local_mode(False)
 
             # Start Telemetry Worker
             self.telemetry_worker = TelemetryWorker(self.psu_instrument.driver, interval_s=0.1)
@@ -396,7 +388,8 @@ class MainWindow(QMainWindow):
         self.btn_connect_psu.setObjectName("primary")
         self.btn_connect_psu.setStyleSheet("")
         self.lbl_psu_led.setStyleSheet("color: #F87171; font-size: 9pt;")
-        self.btn_mode_toggle.setEnabled(False)
+        self.btn_mode_remote.setEnabled(False)
+        self.btn_mode_local.setEnabled(False)
         self.tab_psu.set_connected(False)
         self.status_bar.showMessage("PSU Disconnected.")
         self.tab_session.update_instrument_stats(0, "Disconnected", 0)
@@ -495,11 +488,25 @@ class MainWindow(QMainWindow):
             self.psu_instrument.driver.set_ovp(ovp)
 
     def _on_psu_set_output(self, on: bool):
-        if self.psu_instrument.connected and not self.is_local_mode:
-            if self.btn_estop.latched and on:
-                QMessageBox.warning(self, "Safety Interlock", "Cannot enable output while E-Stop is LATCHED.")
-                return
+        if not self.psu_instrument.connected:
+            self.status_bar.showMessage("Cannot toggle output: PSU is not connected.")
+            self.tab_psu.update_output_state(False)
+            return
+        if self.is_local_mode:
+            self.status_bar.showMessage("PSU in LOCAL MODE: Switch to REMOTE mode to control output via software.")
+            self.tab_psu.update_output_state(False)
+            return
+        if self.btn_estop.latched and on:
+            QMessageBox.warning(self, "Safety Interlock", "Cannot enable output while E-Stop is LATCHED.")
+            self.tab_psu.update_output_state(False)
+            return
+        try:
             self.psu_instrument.driver.set_output(on)
+            self.tab_psu.update_output_state(on)
+            st_text = "ON (ACTIVE)" if on else "OFF (STANDBY)"
+            self.status_bar.showMessage(f"PSU Master Output set to {st_text}.")
+        except Exception as e:
+            self.status_bar.showMessage(f"Failed to set PSU output: {e}")
 
     def _on_psu_set_mode(self, mode: str):
         if self.psu_instrument.connected and not self.is_local_mode:
@@ -510,24 +517,31 @@ class MainWindow(QMainWindow):
             new_st = not self.psu_instrument.driver.output_state
             self._on_psu_set_output(new_st)
 
-    def _toggle_local_remote(self):
+    def _set_local_mode(self, is_local: bool):
         if not self.psu_instrument.connected:
+            self.status_bar.showMessage("Cannot change bus mode: PSU is not connected.")
             return
-        new_local = not self.is_local_mode
-        self.is_local_mode = new_local
-        if new_local:
-            self.psu_instrument.driver.set_local()
-            self.btn_mode_toggle.setText("🔒 LOCAL")
-            self.btn_mode_toggle.setObjectName("mode_local")
-            self.status_bar.showMessage("Switched to LOCAL MODE: Front panel physical controls active.")
+        self.is_local_mode = is_local
+        if is_local:
+            try:
+                self.psu_instrument.driver.set_local()
+            except Exception:
+                pass
+            self.btn_mode_local.setStyleSheet("background-color: #F59E0B; color: #000000; font-weight: bold; border-radius: 4px; padding: 4px 8px;")
+            self.btn_mode_remote.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; border-radius: 4px; padding: 4px 8px;")
+            self.status_bar.showMessage("Switched to LOCAL MODE (GTL): Front panel physical controls active.")
         else:
-            self.psu_instrument.driver.set_remote()
-            self.btn_mode_toggle.setText("⚡ REMOTE")
-            self.btn_mode_toggle.setObjectName("mode_remote")
-            self.status_bar.showMessage("Switched to REMOTE MODE: Software controls active.")
-        self.tab_psu.set_local_mode(new_local)
-        self.btn_mode_toggle.style().unpolish(self.btn_mode_toggle)
-        self.btn_mode_toggle.style().polish(self.btn_mode_toggle)
+            try:
+                self.psu_instrument.driver.set_remote()
+            except Exception:
+                pass
+            self.btn_mode_remote.setStyleSheet("background-color: #2563EB; color: #FFFFFF; font-weight: bold; border-radius: 4px; padding: 4px 8px;")
+            self.btn_mode_local.setStyleSheet("background-color: #27272A; color: #94A3B8; font-weight: normal; border-radius: 4px; padding: 4px 8px;")
+            self.status_bar.showMessage("Switched to REMOTE MODE (GTR): Software controls active.")
+        self.tab_psu.set_local_mode(is_local)
+
+    def _toggle_local_remote(self):
+        self._set_local_mode(not self.is_local_mode)
 
     # -------------------------------------------------------------------------
     # SCOPE ACTIONS

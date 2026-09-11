@@ -86,25 +86,16 @@ v6/
 
 ## How to Run
 
-### With Hardware Simulators
+### Connecting to Integrated Simulator or Bench Instruments
 
-The `--sim` flag is built into `v6/main.py`. It starts background TCP simulators for both the LAB-HP 41000 on `127.0.0.1:10001` and the RTB2000 on `127.0.0.1:5025`:
-
-```bash
-python -m v6.main --sim
-```
-
-Simulators can also be run as independent background processes:
+Run the application directly using Python, pointing to your local integrated simulator (e.g., ports 10001 and 5025) or benchtop hardware IP addresses:
 
 ```bash
-python -m v6.instruments.labhp_41000.simulator 10001
-python -m v6.instruments.rtb2000.simulator 5025
-```
+# With default localhost ports (127.0.0.1:10001 for PSU, 127.0.0.1:5025 for Scope):
+python -m v6.main
 
-### Without Simulators (Targeting Physical Instruments)
-
-```bash
-python -m v6.main --psu-ip 192.168.1.100 --scope-ip 192.168.1.101
+# Or explicitly specifying custom IP addresses and ports:
+python -m v6.main --psu-ip 127.0.0.1 --psu-port 10001 --scope-ip 127.0.0.1 --scope-port 5025
 ```
 
 ## Instrument Connection
