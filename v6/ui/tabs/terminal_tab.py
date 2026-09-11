@@ -2,41 +2,11 @@
 import time
 from typing import Dict, List
 
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QLineEdit, QTextEdit, QPushButton, QToolButton, QComboBox,
-        QScrollArea, QFrame
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QLineEdit:
-        def __init__(self, text="", parent=None): pass
-    class QTextEdit:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    class QToolButton:
-        def __init__(self, parent=None): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
-    class QScrollArea:
-        def __init__(self, parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QLineEdit, QTextEdit, QPushButton, QToolButton, QComboBox,
+    QScrollArea, QFrame, Qt, pyqtSignal
+)
 
 
 class TerminalTab(QWidget):

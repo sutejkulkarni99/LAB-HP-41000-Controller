@@ -1,29 +1,5 @@
 """CollapsibleSection — Clean progressive disclosure accordion widget for UI panels."""
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text="", parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QSizePolicy:
-        class Policy:
-            Preferred = 0
-            Expanding = 1
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSizePolicy, Qt, pyqtSignal
 
 
 class CollapsibleSection(QWidget):

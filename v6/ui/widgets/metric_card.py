@@ -1,29 +1,5 @@
 """ModernMetricCard — Sleek vector metric card (inherited verbatim from v5)."""
-try:
-    from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
-    from PyQt6.QtCore import Qt
-except ImportError:
-    class QFrame:
-        def __init__(self, parent=None): pass
-        def setObjectName(self, name): pass
-        def setStyleSheet(self, s): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-        def setContentsMargins(self, *a): pass
-        def setSpacing(self, *a): pass
-        def addWidget(self, *a): pass
-        def addLayout(self, *a): pass
-    class QHBoxLayout(QVBoxLayout):
-        def addStretch(self): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-        def setStyleSheet(self, s): pass
-        def setText(self, t): pass
-        def setAlignment(self, a): pass
-    class Qt:
-        class AlignmentFlag:
-            AlignLeft = 1
-            AlignVCenter = 2
+from ..qt_compat import QFrame, QVBoxLayout, QHBoxLayout, QLabel, Qt
 
 
 class ModernMetricCard(QFrame):
@@ -33,8 +9,39 @@ class ModernMetricCard(QFrame):
     Supports dynamic dark (Slate Control) and light (Clean Laboratory) themes.
     """
 
-    def __init__(self, title: str, unit: str, color_hex: str, parent=None):
-        super().__init__(parent)
+    def __init__(self, title: str, *args, parent=None, **kwargs):
+        # Determine parent widget safely: QFrame requires Optional[QWidget], never a str/int
+        q_parent = parent if (parent is not None and not isinstance(parent, (str, bytes, int, float, list, dict))) else None
+
+        # Parse flexible argument patterns:
+        # 1) ModernMetricCard("VOLTAGE", "V", "#38BDF8")
+        # 2) ModernMetricCard("OUTPUT VOLTAGE", "0.00", "V", "#38BDF8")
+        # 3) ModernMetricCard("OUTPUT VOLTAGE", unit="V", color_hex="#38BDF8")
+        initial_val = kwargs.get("initial_val", "0.00")
+        unit = kwargs.get("unit", "")
+        color_hex = kwargs.get("color_hex", "#38BDF8")
+
+        if len(args) == 1:
+            unit = str(args[0])
+        elif len(args) == 2:
+            unit = str(args[0])
+            color_hex = str(args[1])
+        elif len(args) >= 3:
+            # Check if args[2] is color hex (e.g. #38BDF8 or starts with # / named color)
+            # or if args[0] looks like initial value (e.g. "0.00", "0.0000", "---")
+            if isinstance(args[2], str) and (args[2].startswith("#") or "color" in args[2].lower() or len(args[2]) == 7):
+                initial_val = str(args[0])
+                unit = str(args[1])
+                color_hex = str(args[2])
+                if len(args) >= 4 and q_parent is None and not isinstance(args[3], (str, bytes, int, float, list, dict)):
+                    q_parent = args[3]
+            else:
+                unit = str(args[0])
+                color_hex = str(args[1])
+                if q_parent is None and not isinstance(args[2], (str, bytes, int, float, list, dict)):
+                    q_parent = args[2]
+
+        super().__init__(q_parent)
         self.title_text = title
         self.unit_text = unit
         self.accent_color = color_hex
@@ -73,7 +80,7 @@ class ModernMetricCard(QFrame):
         layout.addLayout(header_row)
 
         # Primary Vector Digits
-        self.lbl_value = QLabel("0.00")
+        self.lbl_value = QLabel(initial_val)
         self.lbl_value.setStyleSheet("""
             font-family: 'JetBrains Mono', 'SF Pro Display', 'Consolas', monospace;
             font-size: 26pt;
@@ -151,11 +158,7 @@ class ModernMetricCard(QFrame):
             """)
             self.lbl_setpoint.setStyleSheet("font-size: 9pt; color: #475569;")
 
-    def update_measurement(self, actual: float, decimals: int = 2):
-        self.actual_val = actual
-        fmt = f"{{:.{decimals}f}}"
-        self.lbl_value.setText(fmt.format(actual))
-
+    def _update_delta_label(self, decimals: int = 2):
         diff = self.actual_val - self.setpoint_val
         delta_sign = "+" if diff > 0.0001 else ("-" if diff < -0.0001 else "±")
         delta_str = f"Δ {delta_sign}{abs(diff):.{min(decimals, 3)}f} {self.unit_text}"
@@ -169,6 +172,28 @@ class ModernMetricCard(QFrame):
 
         self.lbl_delta.setText(delta_str)
         self.lbl_delta.setStyleSheet(f"font-size: 8.5pt; font-family: monospace; color: {delta_color};")
+
+    def set_value(self, val):
+        """Sets display value directly, accepting string (e.g. '0.00', '---') or float."""
+        if isinstance(val, (int, float)):
+            self.update_measurement(float(val))
+        else:
+            self.lbl_value.setText(str(val))
+            try:
+                cleaned = str(val).replace("k", "").replace("M", "").strip()
+                self.actual_val = float(cleaned)
+                self._update_delta_label()
+            except (ValueError, TypeError):
+                pass
+
+    def update_measurement(self, actual: float, decimals: int = 2):
+        self.actual_val = actual
+        fmt = f"{{:.{decimals}f}}"
+        self.lbl_value.setText(fmt.format(actual))
+        self._update_delta_label(decimals)
+
+    def set_setpoint(self, setpoint: float, decimals: int = 2):
+        self.update_setpoint(setpoint, decimals)
 
     def update_setpoint(self, setpoint: float, decimals: int = 2):
         self.setpoint_val = setpoint

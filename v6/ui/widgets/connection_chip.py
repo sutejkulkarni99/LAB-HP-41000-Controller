@@ -1,32 +1,5 @@
 """ConnectionChip — Compact industrial instrument status chip with RTT latency and pulse dot."""
-try:
-    from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QFrame:
-        def __init__(self, parent=None): pass
-        def setObjectName(self, name): pass
-        def setStyleSheet(self, s): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-        def setContentsMargins(self, *a): pass
-        def setSpacing(self, *a): pass
-        def addWidget(self, *a): pass
-        def addStretch(self): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-        def setStyleSheet(self, s): pass
-        def setText(self, t): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    class Qt:
-        class CursorShape:
-            PointingHandCursor = 13
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import QFrame, QHBoxLayout, QLabel, QPushButton, Qt, pyqtSignal
 
 
 class ConnectionChip(QFrame):

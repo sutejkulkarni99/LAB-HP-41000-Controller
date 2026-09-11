@@ -1,19 +1,5 @@
 """SoftkeyBar — Bottom benchtop softkey action bar for oscilloscope automation."""
-try:
-    from PyQt6.QtWidgets import QFrame, QHBoxLayout, QPushButton
-    from PyQt6.QtCore import pyqtSignal
-except ImportError:
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import QFrame, QHBoxLayout, QPushButton, pyqtSignal
 
 
 class SoftkeyBar(QFrame):

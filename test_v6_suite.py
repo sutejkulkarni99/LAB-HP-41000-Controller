@@ -186,6 +186,30 @@ def run_tests():
         psu_sim.stop()
         scope_sim.stop()
 
+        # 10. Test UI ModernMetricCard and PSUTab
+        print("\n[TEST 10] Testing ModernMetricCard signatures and PSUTab telemetry...")
+        from v6.ui.widgets.metric_card import ModernMetricCard
+        from v6.ui.tabs.psu_tab import PSUTab
+
+        card1 = ModernMetricCard("OUTPUT VOLTAGE", "0.00", "V", "#38BDF8")
+        card2 = ModernMetricCard("OUTPUT CURRENT", "0.0000", "A", "#34D399", parent=None)
+        card3 = ModernMetricCard("DELIVERED POWER", "W", "#F472B6")
+        card4 = ModernMetricCard("CALCULATED LOAD", "---", "Ω", "#FBBF24")
+
+        card1.set_value("48.00")
+        card1.update_setpoint(50.0)
+        card1.set_value(48.0)
+        card1.set_theme(False)
+        assert card1.actual_val == 48.0
+        assert card1.setpoint_val == 50.0
+        print("  -> ModernMetricCard constructed and verified across all argument signatures")
+
+        tab_psu = PSUTab()
+        tab_psu.update_telemetry(1.0, 48.0, 2.5, 120.0, 19.2)
+        tab_psu.update_output_state(True)
+        tab_psu.update_output_state(False)
+        print("  -> PSUTab instantiated and telemetry update executed successfully")
+
         print("\n" + "=" * 70)
         print("ALL TESTS PASSED WITH 100% SUCCESS!")
         print("=" * 70)

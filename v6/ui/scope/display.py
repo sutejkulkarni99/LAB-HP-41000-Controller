@@ -2,22 +2,7 @@
 import math
 from typing import Dict, List, Optional, Any
 
-try:
-    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtGui import QColor, QFont
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-
+from ..qt_compat import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, Qt, QColor, QFont
 try:
     import pyqtgraph as pg
     HAVE_PYQTGRAPH = True

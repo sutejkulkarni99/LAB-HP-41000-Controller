@@ -1,30 +1,8 @@
 """TriggerControlWidget — Oscilloscope trigger source, mode, edge slope, and level."""
-try:
-    from PyQt6.QtWidgets import (
-        QGroupBox, QVBoxLayout, QGridLayout, QLabel,
-        QComboBox, QDoubleSpinBox, QSlider
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
-    class QDoubleSpinBox:
-        def __init__(self, parent=None): pass
-    class QSlider:
-        def __init__(self, orientation, parent=None): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QGroupBox, QVBoxLayout, QGridLayout, QLabel,
+    QComboBox, QDoubleSpinBox, QSlider, Qt, pyqtSignal
+)
 
 
 class TriggerControlWidget(QGroupBox):

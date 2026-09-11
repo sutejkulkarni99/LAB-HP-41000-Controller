@@ -2,41 +2,15 @@
 import time
 from typing import Dict, Any, List
 
+from ..qt_compat import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QCheckBox, QPushButton, QToolButton, QMessageBox,
+    QScrollArea, QFrame, QSplitter, Qt, pyqtSignal
+)
 try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QCheckBox, QPushButton, QToolButton, QMessageBox,
-        QScrollArea, QFrame, QSplitter
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
     import pyqtgraph as pg
     HAVE_PYQTGRAPH = True
 except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QCheckBox:
-        def __init__(self, text=""): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    class QToolButton:
-        def __init__(self, parent=None): pass
-    class QScrollArea:
-        def __init__(self, parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QSplitter:
-        def __init__(self, *args, parent=None): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
     HAVE_PYQTGRAPH = False
 
 from ..plots.export import PlotPresentationDialog

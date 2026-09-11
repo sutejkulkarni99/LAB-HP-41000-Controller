@@ -14,101 +14,18 @@ try:
 except ImportError:
     HAVE_NUMPY = False
 
+from ..qt_compat import (
+    QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QLabel,
+    QLineEdit, QSpinBox, QComboBox, QPushButton, QCheckBox, QListWidget,
+    QDialogButtonBox, QMessageBox, QFileDialog, QAbstractItemView,
+    Qt, QPointF, QRectF,
+    QFont, QColor, QPainter, QPen, QBrush, QImage, QPixmap, QPdfWriter, QPageSize, QPageLayout
+)
 try:
-    from PyQt6.QtWidgets import (
-        QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox, QLabel,
-        QLineEdit, QSpinBox, QComboBox, QPushButton, QCheckBox, QListWidget,
-        QDialogButtonBox, QMessageBox, QFileDialog, QAbstractItemView
-    )
-    from PyQt6.QtCore import Qt, QPointF, QRectF
-    from PyQt6.QtGui import (
-        QFont, QColor, QPainter, QPen, QBrush, QImage, QPixmap, QPdfWriter, QPageSize, QPageLayout
-    )
-    try:
-        from PyQt6.QtSvg import QSvgGenerator
-        HAVE_SVG = True
-    except ImportError:
-        HAVE_SVG = False
+    from PyQt6.QtSvg import QSvgGenerator
+    HAVE_SVG = True
 except ImportError:
     HAVE_SVG = False
-    class QDialog:
-        def __init__(self, parent=None): pass
-        def exec(self): return 0
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-        def setContentsMargins(self, *a): pass
-        def addWidget(self, *a): pass
-        def addLayout(self, *a): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-        def setContentsMargins(self, *a): pass
-        def addWidget(self, *a): pass
-        def addLayout(self, *a): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-        def addWidget(self, *a): pass
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QLabel:
-        def __init__(self, text="", parent=None): pass
-    class QLineEdit:
-        def __init__(self, text="", parent=None): pass
-        def text(self): return ""
-    class QSpinBox:
-        def __init__(self, parent=None): pass
-        def value(self): return 0
-    class QComboBox:
-        def __init__(self, parent=None): pass
-        def currentText(self): return ""
-    class QPushButton:
-        def __init__(self, text="", parent=None): pass
-    class QCheckBox:
-        def __init__(self, text="", parent=None): pass
-        def isChecked(self): return False
-    class QListWidget:
-        def __init__(self, parent=None): pass
-    class QDialogButtonBox:
-        class StandardButton:
-            Ok = 1
-            Cancel = 2
-            Apply = 4
-        def __init__(self, buttons, parent=None): pass
-    class QMessageBox:
-        @staticmethod
-        def critical(*a): pass
-        @staticmethod
-        def information(*a): pass
-    class QFileDialog:
-        @staticmethod
-        def getExistingDirectory(*a): return ""
-    class QAbstractItemView:
-        pass
-    class Qt:
-        class PenStyle:
-            SolidLine = 1
-            DashLine = 2
-        class AlignmentFlag:
-            AlignCenter = 1
-    class QFont:
-        pass
-    class QColor:
-        pass
-    class QPainter:
-        pass
-    class QPen:
-        pass
-    class QBrush:
-        pass
-    class QImage:
-        pass
-    class QPixmap:
-        pass
-    class QPdfWriter:
-        pass
-    class QPageSize:
-        pass
-    class QPageLayout:
-        pass
 
 try:
     import pyqtgraph as pg

@@ -1,32 +1,8 @@
 """TimebaseControlWidget — Horizontal deflection (time/div), acquisition RUN/STOP/SINGLE."""
-try:
-    from PyQt6.QtWidgets import (
-        QGroupBox, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
-        QComboBox, QDoubleSpinBox, QPushButton
-    )
-    from PyQt6.QtCore import pyqtSignal
-except ImportError:
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
-    class QDoubleSpinBox:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QGroupBox, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
+    QComboBox, QDoubleSpinBox, QPushButton, pyqtSignal
+)
 
 
 class TimebaseControlWidget(QGroupBox):

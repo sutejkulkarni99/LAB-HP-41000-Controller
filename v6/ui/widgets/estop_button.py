@@ -1,34 +1,5 @@
 """EStopButton — Latching Industrial Emergency Stop Button with Ctrl+E shortcut."""
-try:
-    from PyQt6.QtWidgets import QPushButton
-    from PyQt6.QtGui import QKeySequence, QShortcut
-    from PyQt6.QtCore import pyqtSignal
-except ImportError:
-    class QPushButton:
-        def __init__(self, text="", parent=None): pass
-        def setObjectName(self, name): pass
-        def setFixedSize(self, w, h): pass
-        def setText(self, t): pass
-        def setProperty(self, k, v): pass
-        def setToolTip(self, t): pass
-        def style(self):
-            class S:
-                def unpolish(self, w): pass
-                def polish(self, w): pass
-            return S()
-        def clicked(self): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
-    class QKeySequence:
-        def __init__(self, s): pass
-    class QShortcut:
-        def __init__(self, k, p):
-            class Act:
-                def connect(self, s): pass
-            self.activated = Act()
+from ..qt_compat import QPushButton, QKeySequence, QShortcut, pyqtSignal
 
 
 class EStopButton(QPushButton):

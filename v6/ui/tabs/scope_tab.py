@@ -1,51 +1,12 @@
 """ScopeTab — Rohde & Schwarz RTB2000 oscilloscope front panel card with responsive layout."""
 from typing import Dict, Any, List
 
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-        QLabel, QComboBox, QDoubleSpinBox, QPushButton, QCheckBox,
-        QTabWidget, QSplitter, QScrollArea, QFrame, QSizePolicy
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QLabel:
-        def __init__(self, text="", parent=None): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
-    class QDoubleSpinBox:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text="", parent=None): pass
-    class QCheckBox:
-        def __init__(self, text="", parent=None): pass
-    class QTabWidget:
-        def __init__(self, parent=None): pass
-    class QSplitter:
-        def __init__(self, *args, parent=None): pass
-    class QScrollArea:
-        def __init__(self, parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QSizePolicy:
-        class Policy:
-            Preferred = 0
-            Expanding = 1
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
+    QLabel, QComboBox, QDoubleSpinBox, QPushButton, QCheckBox,
+    QTabWidget, QSplitter, QScrollArea, QFrame, QSizePolicy,
+    Qt, pyqtSignal
+)
 
 from ..scope.display import ScopeDisplayWidget
 from ..scope.channel_control import ChannelControlWidget

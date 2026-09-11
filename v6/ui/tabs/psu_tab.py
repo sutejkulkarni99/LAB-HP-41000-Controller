@@ -2,56 +2,12 @@
 import math
 from typing import Dict, Any
 
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-        QLabel, QLineEdit, QDoubleSpinBox, QPushButton, QCheckBox,
-        QRadioButton, QButtonGroup, QProgressBar, QFrame, QSplitter,
-        QScrollArea, QSizePolicy
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QLabel:
-        def __init__(self, text="", parent=None): pass
-    class QLineEdit:
-        def __init__(self, parent=None): pass
-    class QDoubleSpinBox:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text="", parent=None): pass
-    class QCheckBox:
-        def __init__(self, text="", parent=None): pass
-    class QRadioButton:
-        def __init__(self, text="", parent=None): pass
-    class QButtonGroup:
-        def __init__(self, parent=None): pass
-    class QProgressBar:
-        def __init__(self, parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QSplitter:
-        def __init__(self, *args, parent=None): pass
-    class QScrollArea:
-        def __init__(self, parent=None): pass
-    class QSizePolicy:
-        class Policy:
-            Preferred = 0
-            Expanding = 1
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
+    QLabel, QLineEdit, QDoubleSpinBox, QPushButton, QCheckBox,
+    QRadioButton, QButtonGroup, QProgressBar, QFrame, QSplitter,
+    QScrollArea, QSizePolicy, Qt, pyqtSignal
+)
 
 from ..widgets.metric_card import ModernMetricCard
 from ..widgets.collapsible import CollapsibleSection
@@ -98,10 +54,10 @@ class PSUTab(QWidget):
         left_layout.setSpacing(10)
 
         # 4 Metric Cards (Voltage, Current, Power, Resistance)
-        self.card_v = ModernMetricCard("OUTPUT VOLTAGE", "0.00", "V", DARK_ACCENT_VOLTAGE)
-        self.card_i = ModernMetricCard("OUTPUT CURRENT", "0.0000", "A", DARK_ACCENT_CURRENT)
-        self.card_p = ModernMetricCard("DELIVERED POWER", "0.0", "W", DARK_ACCENT_POWER)
-        self.card_r = ModernMetricCard("CALCULATED LOAD", "---", "Ω", DARK_ACCENT_RESISTANCE)
+        self.card_v = ModernMetricCard("OUTPUT VOLTAGE", "0.00", "V", DARK_ACCENT_VOLTAGE, parent=self)
+        self.card_i = ModernMetricCard("OUTPUT CURRENT", "0.0000", "A", DARK_ACCENT_CURRENT, parent=self)
+        self.card_p = ModernMetricCard("DELIVERED POWER", "0.0", "W", DARK_ACCENT_POWER, parent=self)
+        self.card_r = ModernMetricCard("CALCULATED LOAD", "---", "Ω", DARK_ACCENT_RESISTANCE, parent=self)
 
         left_layout.addWidget(self.card_v)
         left_layout.addWidget(self.card_i)

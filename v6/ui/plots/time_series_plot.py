@@ -6,29 +6,10 @@ import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-try:
-    from PyQt6.QtWidgets import (
-        QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox
-    )
-    from PyQt6.QtCore import Qt, pyqtSignal
-    from PyQt6.QtGui import QColor, QFont, QImage, QPainter
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
-
+from ..qt_compat import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox,
+    Qt, pyqtSignal, QColor, QFont, QImage, QPainter
+)
 try:
     import pyqtgraph as pg
     HAVE_PYQTGRAPH = True

@@ -6,24 +6,11 @@ except ImportError:
     HAVE_NUMPY = False
 from typing import Dict, Any
 
+from ..qt_compat import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, Qt
 try:
-    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea
-    from PyQt6.QtCore import Qt
     import pyqtgraph as pg
     HAVE_PYQTGRAPH = True
 except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QScrollArea:
-        def __init__(self, parent=None): pass
     HAVE_PYQTGRAPH = False
 
 

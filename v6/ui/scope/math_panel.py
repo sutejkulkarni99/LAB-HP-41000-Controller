@@ -1,30 +1,8 @@
 """MathPanelWidget — Dual-channel waveform math (ADD, SUB, MULT, FFT) controls."""
-try:
-    from PyQt6.QtWidgets import (
-        QGroupBox, QVBoxLayout, QGridLayout, QLabel,
-        QComboBox, QCheckBox, QPushButton
-    )
-    from PyQt6.QtCore import pyqtSignal
-except ImportError:
-    class QGroupBox:
-        def __init__(self, title="", parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
-    class QCheckBox:
-        def __init__(self, text=""): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    def pyqtSignal(*args, **kwargs):
-        class Sig:
-            def connect(self, s): pass
-            def emit(self, *a): pass
-        return Sig()
+from ..qt_compat import (
+    QGroupBox, QVBoxLayout, QGridLayout, QLabel,
+    QComboBox, QCheckBox, QPushButton, pyqtSignal
+)
 
 
 class MathPanelWidget(QGroupBox):

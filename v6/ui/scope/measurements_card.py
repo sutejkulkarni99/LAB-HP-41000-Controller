@@ -1,20 +1,7 @@
 """MeasurementsCard — Live automated scalar measurement readout card."""
 from typing import Dict, Any
 
-try:
-    from PyQt6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QLabel, QFrame
-    from PyQt6.QtCore import Qt
-except ImportError:
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QGridLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
+from ..qt_compat import QWidget, QVBoxLayout, QGridLayout, QLabel, QFrame, Qt
 
 from ..styles.tokens import SCOPE_CH1_COLOR, SCOPE_CH2_COLOR
 

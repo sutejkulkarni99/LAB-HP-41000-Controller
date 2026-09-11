@@ -4,41 +4,13 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-try:
-    from PyQt6.QtWidgets import (
-        QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QLineEdit, QSpinBox, QPushButton, QToolButton, QTabWidget,
-        QStatusBar, QFrame, QMessageBox, QApplication, QStyle, QMenu, QSizePolicy
-    )
-    from PyQt6.QtGui import QKeySequence, QShortcut, QGuiApplication, QAction
-    from PyQt6.QtCore import Qt, QTimer
-except ImportError:
-    class QMainWindow:
-        def __init__(self, parent=None): pass
-    class QWidget:
-        def __init__(self, parent=None): pass
-    class QVBoxLayout:
-        def __init__(self, parent=None): pass
-    class QHBoxLayout:
-        def __init__(self, parent=None): pass
-    class QLabel:
-        def __init__(self, text=""): pass
-    class QLineEdit:
-        def __init__(self, text="", parent=None): pass
-    class QSpinBox:
-        def __init__(self, parent=None): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
-    class QToolButton:
-        def __init__(self, parent=None): pass
-    class QTabWidget:
-        def __init__(self, parent=None): pass
-    class QStatusBar:
-        def __init__(self, parent=None): pass
-    class QFrame:
-        def __init__(self, parent=None): pass
-    class QMenu:
-        def __init__(self, parent=None): pass
+from .qt_compat import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QLineEdit, QSpinBox, QPushButton, QToolButton, QTabWidget,
+    QStatusBar, QFrame, QMessageBox, QApplication, QStyle, QMenu, QSizePolicy,
+    QKeySequence, QShortcut, QGuiApplication, QAction,
+    Qt, QTimer
+)
 
 from .styles.dark import MODERN_DARK_STYLESHEET
 from .styles.light import MODERN_LIGHT_STYLESHEET
