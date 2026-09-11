@@ -1,11 +1,12 @@
-"""PlotsTab — Unified multi-instrument time-series analysis and publication export."""
+"""PlotsTab — Unified multi-instrument time-series analysis and publication export with responsive layout."""
 import time
 from typing import Dict, Any, List
 
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QCheckBox, QPushButton, QToolButton, QMessageBox
+        QCheckBox, QPushButton, QToolButton, QMessageBox,
+        QScrollArea, QFrame, QSplitter
     )
     from PyQt6.QtCore import Qt, pyqtSignal
     import pyqtgraph as pg
@@ -25,6 +26,12 @@ except ImportError:
         def __init__(self, text=""): pass
     class QToolButton:
         def __init__(self, parent=None): pass
+    class QScrollArea:
+        def __init__(self, parent=None): pass
+    class QFrame:
+        def __init__(self, parent=None): pass
+    class QSplitter:
+        def __init__(self, *args, parent=None): pass
     def pyqtSignal(*args, **kwargs):
         class Sig:
             def connect(self, s): pass
@@ -61,11 +68,20 @@ class PlotsTab(QWidget):
         self.ch2_vrms_data: List[float] = []
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
 
-        # Toolbar
-        tb = QHBoxLayout()
+        # Toolbar wrapped in scrollable/flexible horizontal container
+        tb_scroll = QScrollArea()
+        tb_scroll.setWidgetResizable(True)
+        tb_scroll.setFixedHeight(44)
+        tb_scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        tb_widget = QWidget()
+        tb = QHBoxLayout(tb_widget)
+        tb.setContentsMargins(4, 2, 4, 2)
+        tb.setSpacing(10)
+
         tb.addWidget(QLabel("Traces:"))
 
         self.chkV = QCheckBox("PSU V")
@@ -121,15 +137,16 @@ class PlotsTab(QWidget):
         self.btn_export.clicked.connect(self._open_settings_dialog)
         tb.addWidget(self.btn_export)
 
-        layout.addLayout(tb)
+        tb_scroll.setWidget(tb_widget)
+        layout.addWidget(tb_scroll)
 
         # Summary statistics banner
         self.lbl_stats = QLabel("Session Duration: 0.0s  |  Peak V: 0.00 V  |  Peak I: 0.0000 A  |  Peak P: 0.0 W  |  CH1 Max: 0.00 V")
         self.lbl_stats.setStyleSheet("""
-            background-color: #121418;
-            border: 1px solid #232730;
-            border-radius: 4px;
-            color: #E2E8F0;
+            background-color: #0E1220;
+            border: 1px solid #1B2238;
+            border-radius: 6px;
+            color: #E8ECF5;
             font-size: 8.5pt;
             font-family: monospace;
             padding: 5px 10px;
@@ -164,7 +181,7 @@ class PlotsTab(QWidget):
 
         # HUD inspection label
         self.lbl_hud = QLabel("Cursor: Hover over plot trace to inspect multi-instrument values at matching timecode.")
-        self.lbl_hud.setStyleSheet("font-size: 8pt; font-family: monospace; color: #94A3B8;")
+        self.lbl_hud.setStyleSheet("font-size: 8pt; font-family: monospace; color: #8B94AD;")
         layout.addWidget(self.lbl_hud)
 
     def append_data(self, t: float, psu_vals: Dict[str, float], scope_vals: Dict[str, float]):
@@ -235,8 +252,8 @@ class PlotsTab(QWidget):
     def set_theme(self, is_dark: bool):
         self.is_dark = is_dark
         if HAVE_PYQTGRAPH:
-            bg = "#121418" if is_dark else "#F8FAFC"
-            fg = "#E2E8F0" if is_dark else "#0F172A"
+            bg = "#05070E" if is_dark else "#F8FAFC"
+            fg = "#E8ECF5" if is_dark else "#0F172A"
             self.plot_widget.setBackground(bg)
             self.plot_widget.getAxis('bottom').setPen(fg)
             self.plot_widget.getAxis('left').setPen(fg)

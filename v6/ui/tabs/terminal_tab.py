@@ -1,11 +1,12 @@
-"""TerminalTab — Interactive ASCII / SCPI command console for multi-instrument bus inspection."""
+"""TerminalTab — Interactive ASCII / SCPI command console for multi-instrument bus inspection with responsive layout."""
 import time
 from typing import Dict, List
 
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QLineEdit, QTextEdit, QPushButton, QToolButton, QComboBox
+        QLineEdit, QTextEdit, QPushButton, QToolButton, QComboBox,
+        QScrollArea, QFrame
     )
     from PyQt6.QtCore import Qt, pyqtSignal
 except ImportError:
@@ -18,7 +19,7 @@ except ImportError:
     class QLabel:
         def __init__(self, text=""): pass
     class QLineEdit:
-        def __init__(self, parent=None): pass
+        def __init__(self, text="", parent=None): pass
     class QTextEdit:
         def __init__(self, parent=None): pass
     class QPushButton:
@@ -26,6 +27,10 @@ except ImportError:
     class QToolButton:
         def __init__(self, parent=None): pass
     class QComboBox:
+        def __init__(self, parent=None): pass
+    class QScrollArea:
+        def __init__(self, parent=None): pass
+    class QFrame:
         def __init__(self, parent=None): pass
     def pyqtSignal(*args, **kwargs):
         class Sig:
@@ -51,7 +56,7 @@ class TerminalTab(QWidget):
     RTB2000_PRESETS = [
         ("*IDN?", "*IDN?"), ("*OPT?", "*OPT?"), ("Acq State?", "ACQ:STAT?"),
         ("CH1 Scale?", "CHAN1:SCAL?"), ("CH2 Scale?", "CHAN2:SCAL?"),
-        ("Timebase?", "TIM:SCAL?"), ("Trigger Level?", "TRIG:A:LEV1?"),
+        ("Timebase?", "TIM:SCAL?"), ("Trigger Level?", "TRIG:A:LEV?"),
         ("RUN", "RUN"), ("STOP", "STOP")
     ]
 
@@ -59,12 +64,21 @@ class TerminalTab(QWidget):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
 
-        # Top Row: Instrument Target Selector & Quick Commands
-        top_row = QHBoxLayout()
-        top_row.addWidget(QLabel("Target Instrument:"))
+        # Top Row: Instrument Target Selector & Quick Commands wrapped in QScrollArea
+        top_scroll = QScrollArea()
+        top_scroll.setWidgetResizable(True)
+        top_scroll.setFixedHeight(44)
+        top_scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        top_widget = QWidget()
+        top_row = QHBoxLayout(top_widget)
+        top_row.setContentsMargins(2, 2, 2, 2)
+        top_row.setSpacing(10)
+
+        top_row.addWidget(QLabel("Target:"))
 
         self.combo_target = QComboBox()
         self.combo_target.addItem("ETPS LAB-HP 41000", "labhp_41000")
@@ -72,26 +86,27 @@ class TerminalTab(QWidget):
         self.combo_target.currentIndexChanged.connect(self._on_target_changed)
         top_row.addWidget(self.combo_target)
 
-        top_row.addSpacing(15)
-        top_row.addWidget(QLabel("Quick Presets:"))
+        top_row.addSpacing(10)
+        top_row.addWidget(QLabel("Presets:"))
 
         self.preset_container = QHBoxLayout()
         top_row.addLayout(self.preset_container)
         top_row.addStretch()
 
-        layout.addLayout(top_row)
+        top_scroll.setWidget(top_widget)
+        layout.addWidget(top_scroll)
 
         # Output Log Console
         self.term_log = QTextEdit()
         self.term_log.setReadOnly(True)
         self.term_log.setStyleSheet("""
             QTextEdit {
-                background-color: #0A0C10;
-                color: #38BDF8;
+                background-color: #05070E;
+                color: #7DD3FC;
                 font-family: monospace;
                 font-size: 9pt;
-                border: 1px solid #1E232E;
-                border-radius: 4px;
+                border: 1px solid #1B2238;
+                border-radius: 6px;
                 padding: 8px;
             }
         """)
@@ -154,12 +169,12 @@ class TerminalTab(QWidget):
     def _send_command(self, cmd: str):
         target_id = self.combo_target.currentData()
         t_str = time.strftime("%H:%M:%S")
-        self.term_log.append(f"<span style='color: #64748B;'>[{t_str}]</span> <span style='color: #F59E0B;'>[{target_id}]</span> <span style='color: #38BDF8;'>TX &gt;&gt; {cmd}</span>")
+        self.term_log.append(f"<span style='color: #8B94AD;'>[{t_str}]</span> <span style='color: #FBBF24;'>[{target_id}]</span> <span style='color: #7DD3FC;'>TX &gt;&gt; {cmd}</span>")
         self.command_send_requested.emit(target_id, cmd)
 
     def log_response(self, target_id: str, resp: str, is_error: bool = False):
         t_str = time.strftime("%H:%M:%S")
         if is_error:
-            self.term_log.append(f"<span style='color: #64748B;'>[{t_str}]</span> <span style='color: #F59E0B;'>[{target_id}]</span> <span style='color: #EF4444;'>ERR &lt;&lt; {resp}</span>")
+            self.term_log.append(f"<span style='color: #8B94AD;'>[{t_str}]</span> <span style='color: #FBBF24;'>[{target_id}]</span> <span style='color: #F87171;'>ERR &lt;&lt; {resp}</span>")
         else:
-            self.term_log.append(f"<span style='color: #64748B;'>[{t_str}]</span> <span style='color: #F59E0B;'>[{target_id}]</span> <span style='color: #4ADE80;'>RX &lt;&lt; {resp}</span>")
+            self.term_log.append(f"<span style='color: #8B94AD;'>[{t_str}]</span> <span style='color: #FBBF24;'>[{target_id}]</span> <span style='color: #4ADE80;'>RX &lt;&lt; {resp}</span>")

@@ -138,7 +138,7 @@ QPushButton#emergency {
     background-color: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
                                       stop:0 #DC2626, stop:0.7 #B91C1C, stop:1 #7F1D1D);
     border: 3px solid #D97706;
-    border-radius: 42px;
+    border-radius: 36px;
     font-size: 11pt;
     font-weight: 800;
     letter-spacing: 0.5px;
@@ -279,5 +279,32 @@ QSlider::handle:horizontal:hover {
 QDialog {
     background-color: #F8FAFC;
     color: #0F172A;
+}
+
+/* Collapsible Section */
+QWidget#collapsible_section {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+}
+
+QWidget#collapsible_header {
+    background-color: #FFFFFF;
+    border-radius: 8px;
+}
+
+QWidget#collapsible_header:hover {
+    background-color: #F1F5F9;
+}
+
+QLabel#collapsible_title {
+    font-weight: bold;
+    color: #0F172A;
+    font-size: 9.5pt;
+}
+
+QLabel#collapsible_status {
+    color: #475569;
+    font-size: 8.5pt;
 }
 """

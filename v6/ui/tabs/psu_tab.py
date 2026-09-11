@@ -1,12 +1,13 @@
-"""PSUTab — Benchtop Monitor & Control for ETPS LAB-HP 41000 (pixel-identical to v5)."""
+"""PSUTab — Benchtop Power Supply Control Card with Responsive Splitter and Collapsible sections."""
 import math
 from typing import Dict, Any
 
 try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-        QLabel, QPushButton, QDoubleSpinBox, QCheckBox, QComboBox,
-        QToolButton, QMessageBox
+        QLabel, QLineEdit, QDoubleSpinBox, QPushButton, QCheckBox,
+        QRadioButton, QButtonGroup, QProgressBar, QFrame, QSplitter,
+        QScrollArea, QSizePolicy
     )
     from PyQt6.QtCore import Qt, pyqtSignal
 except ImportError:
@@ -21,17 +22,31 @@ except ImportError:
     class QGroupBox:
         def __init__(self, title="", parent=None): pass
     class QLabel:
-        def __init__(self, text=""): pass
-    class QPushButton:
-        def __init__(self, text=""): pass
+        def __init__(self, text="", parent=None): pass
+    class QLineEdit:
+        def __init__(self, parent=None): pass
     class QDoubleSpinBox:
         def __init__(self, parent=None): pass
+    class QPushButton:
+        def __init__(self, text="", parent=None): pass
     class QCheckBox:
-        def __init__(self, text=""): pass
-    class QComboBox:
+        def __init__(self, text="", parent=None): pass
+    class QRadioButton:
+        def __init__(self, text="", parent=None): pass
+    class QButtonGroup:
         def __init__(self, parent=None): pass
-    class QToolButton:
+    class QProgressBar:
         def __init__(self, parent=None): pass
+    class QFrame:
+        def __init__(self, parent=None): pass
+    class QSplitter:
+        def __init__(self, *args, parent=None): pass
+    class QScrollArea:
+        def __init__(self, parent=None): pass
+    class QSizePolicy:
+        class Policy:
+            Preferred = 0
+            Expanding = 1
     def pyqtSignal(*args, **kwargs):
         class Sig:
             def connect(self, s): pass
@@ -39,18 +54,17 @@ except ImportError:
         return Sig()
 
 from ..widgets.metric_card import ModernMetricCard
-from ..plots.time_series_plot import TimeSeriesPlotWidget
+from ..widgets.collapsible import CollapsibleSection
 from ..styles.tokens import (
-    DARK_ACCENT_VOLTAGE, DARK_ACCENT_CURRENT, DARK_ACCENT_POWER, DARK_ACCENT_RESISTANCE,
-    LIGHT_ACCENT_VOLTAGE, LIGHT_ACCENT_CURRENT, LIGHT_ACCENT_POWER, LIGHT_ACCENT_RESISTANCE
+    DARK_ACCENT_VOLTAGE, DARK_ACCENT_CURRENT,
+    DARK_ACCENT_POWER, DARK_ACCENT_RESISTANCE
 )
 
 
 class PSUTab(QWidget):
     """
-    Benchtop Monitor & Control tab providing verified setpoint adjustments,
-    four-channel high-contrast vector readouts, hardware status alarm matrix,
-    and live 60 FPS strip charting for the LAB-HP 41000 power supply.
+    Primary benchtop instrument card representing the ETPS LAB-HP 41000 DC Source.
+    Equipped with large readouts, remote setpoints, operating mode selectors, and hardware alarms.
     """
 
     set_voltage_requested = pyqtSignal(float)
@@ -58,317 +72,291 @@ class PSUTab(QWidget):
     set_power_requested = pyqtSignal(float)
     set_ovp_requested = pyqtSignal(float)
     output_state_requested = pyqtSignal(bool)
-    mode_toggle_requested = pyqtSignal()
     operating_mode_requested = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.is_connected = False
+        self.is_local = False
         self.is_dark = True
-        self.is_local_mode = False
 
-        main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(14, 14, 14, 14)
-        main_layout.setSpacing(14)
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(10, 10, 10, 10)
+        outer_layout.setSpacing(10)
 
-        # ---------------------------------------------------------------------
-        # Left Column: Controls, Setpoints, Status Matrix
-        # ---------------------------------------------------------------------
-        left_col = QVBoxLayout()
-        left_col.setSpacing(10)
-
-        # Output Switch Box
-        out_box = QGroupBox("Master Output Power Stage")
-        ob_layout = QVBoxLayout(out_box)
-        ob_layout.setSpacing(6)
-
-        self.btn_output_on = QPushButton("⚡ OUTPUT ON")
-        self.btn_output_on.setObjectName("success")
-        self.btn_output_on.setFixedHeight(38)
-        self.btn_output_on.setEnabled(False)
-        self.btn_output_on.clicked.connect(self._request_output_on)
-        ob_layout.addWidget(self.btn_output_on)
-
-        self.btn_output_off = QPushButton("OUTPUT STANDBY (OFF)")
-        self.btn_output_off.setObjectName("danger")
-        self.btn_output_off.setFixedHeight(34)
-        self.btn_output_off.setEnabled(False)
-        self.btn_output_off.clicked.connect(lambda: self.output_state_requested.emit(False))
-        ob_layout.addWidget(self.btn_output_off)
-
-        self.chk_high_volt_safety = QCheckBox("High Voltage Interlock Warning (> 50 V)")
-        self.chk_high_volt_safety.setChecked(True)
-        ob_layout.addWidget(self.chk_high_volt_safety)
-
-        left_col.addWidget(out_box)
-
-        # Setpoint Adjustments
-        self.setpoint_box = QGroupBox("Target Setpoint Registers")
-        self.setpoint_box_layout = QVBoxLayout(self.setpoint_box)
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(6)
-
-        # Voltage
-        grid.addWidget(QLabel("Target Voltage:"), 0, 0)
-        self.spin_v_set = QDoubleSpinBox()
-        self.spin_v_set.setRange(0.0, 1000.0)
-        self.spin_v_set.setDecimals(2)
-        self.spin_v_set.setSingleStep(1.0)
-        self.spin_v_set.setSuffix(" V")
-        grid.addWidget(self.spin_v_set, 0, 1)
-
-        self.btn_apply_v = QToolButton()
-        self.btn_apply_v.setText("Apply")
-        self.btn_apply_v.clicked.connect(self._apply_voltage)
-        grid.addWidget(self.btn_apply_v, 0, 2)
-
-        # Current
-        grid.addWidget(QLabel("Target Current:"), 1, 0)
-        self.spin_i_set = QDoubleSpinBox()
-        self.spin_i_set.setRange(0.0, 7.0)
-        self.spin_i_set.setDecimals(4)
-        self.spin_i_set.setSingleStep(0.1)
-        self.spin_i_set.setSuffix(" A")
-        grid.addWidget(self.spin_i_set, 1, 1)
-
-        self.btn_apply_i = QToolButton()
-        self.btn_apply_i.setText("Apply")
-        self.btn_apply_i.clicked.connect(self._apply_current)
-        grid.addWidget(self.btn_apply_i, 1, 2)
-
-        # Power
-        grid.addWidget(QLabel("Power Limit:"), 2, 0)
-        self.spin_p_set = QDoubleSpinBox()
-        self.spin_p_set.setRange(0.0, 4000.0)
-        self.spin_p_set.setDecimals(1)
-        self.spin_p_set.setValue(4000.0)
-        self.spin_p_set.setSuffix(" W")
-        grid.addWidget(self.spin_p_set, 2, 1)
-
-        self.btn_apply_p = QToolButton()
-        self.btn_apply_p.setText("Apply")
-        self.btn_apply_p.clicked.connect(self._apply_power)
-        grid.addWidget(self.btn_apply_p, 2, 2)
-
-        # OVP
-        grid.addWidget(QLabel("Over-Voltage (OVP):"), 3, 0)
-        self.spin_ovp_set = QDoubleSpinBox()
-        self.spin_ovp_set.setRange(0.0, 1100.0)
-        self.spin_ovp_set.setDecimals(1)
-        self.spin_ovp_set.setValue(1100.0)
-        self.spin_ovp_set.setSuffix(" V")
-        grid.addWidget(self.spin_ovp_set, 3, 1)
-
-        self.btn_apply_ovp = QToolButton()
-        self.btn_apply_ovp.setText("Apply")
-        self.btn_apply_ovp.clicked.connect(self._apply_ovp)
-        grid.addWidget(self.btn_apply_ovp, 3, 2)
-
-        self.setpoint_box_layout.addLayout(grid)
-
-        self.lbl_local_notice = QLabel("🔒 LOCAL MODE: Setpoints controlled at Front Panel")
-        self.lbl_local_notice.setStyleSheet("""
-            background-color: #291800;
-            border: 1px solid #78350f;
-            border-radius: 5px;
-            color: #f59e0b;
-            font-weight: 700;
-            padding: 6px;
-            font-size: 8.5pt;
-        """)
-        self.lbl_local_notice.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_local_notice.setVisible(False)
-        self.setpoint_box_layout.addWidget(self.lbl_local_notice)
-
-        left_col.addWidget(self.setpoint_box)
-
-        # Operating Mode Selector
-        mode_box = QGroupBox("Operating Mode")
-        mb_layout = QHBoxLayout(mode_box)
-        self.combo_op_mode = QComboBox()
-        self.combo_op_mode.addItems(["UI", "UIP", "UIR", "PVSIM", "USER"])
-        mb_layout.addWidget(self.combo_op_mode)
-
-        self.btn_apply_mode = QPushButton("Set Mode")
-        self.btn_apply_mode.clicked.connect(lambda: self.operating_mode_requested.emit(self.combo_op_mode.currentText()))
-        mb_layout.addWidget(self.btn_apply_mode)
-        left_col.addWidget(mode_box)
-
-        # Hardware Status & Trips Badges
-        status_box = QGroupBox("Hardware Status & Trips")
-        s_layout = QGridLayout(status_box)
-        s_layout.setSpacing(6)
-
-        self.status_badges = {}
-        status_items = [
-            ("OVP", "OVP Trip", "#ef4444"),
-            ("CurrLim", "Current Limit (CC)", "#f59e0b"),
-            ("PowLim", "Power Limit (CP)", "#f59e0b"),
-            ("Standby", "Standby (Off)", "#94a3b8"),
-            ("Remote", "Remote Mode", "#0ea5e9"),
-            ("Local", "Local Mode", "#f59e0b"),
-        ]
-        for idx, (key, label_txt, color) in enumerate(status_items):
-            badge = QLabel(label_txt)
-            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            badge.setStyleSheet("""
-                background-color: #1a1c22;
-                border: 1px solid #2b2f38;
-                color: #555b68;
-                font-size: 8pt;
-                font-weight: 700;
-                padding: 4px;
-                border-radius: 4px;
-            """)
-            self.status_badges[key] = (badge, color)
-            s_layout.addWidget(badge, idx // 2, idx % 2)
-
-        left_col.addWidget(status_box)
-        left_col.addStretch()
-
-        main_layout.addLayout(left_col, 0)
+        # Main horizontal splitter: Left panel (Readouts + Master Output) vs Right panel (Setpoints & Config)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # ---------------------------------------------------------------------
-        # Right Column: Vector Readouts + Real-time Telemetry Plot
+        # LEFT PANEL: Live Readout Cards & Master Output
         # ---------------------------------------------------------------------
-        right_col = QVBoxLayout()
-        right_col.setSpacing(12)
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 6, 0)
+        left_layout.setSpacing(10)
 
-        # Cards Row
-        cards_row = QHBoxLayout()
-        cards_row.setSpacing(10)
+        # 4 Metric Cards (Voltage, Current, Power, Resistance)
+        self.card_v = ModernMetricCard("OUTPUT VOLTAGE", "0.00", "V", DARK_ACCENT_VOLTAGE)
+        self.card_i = ModernMetricCard("OUTPUT CURRENT", "0.0000", "A", DARK_ACCENT_CURRENT)
+        self.card_p = ModernMetricCard("DELIVERED POWER", "0.0", "W", DARK_ACCENT_POWER)
+        self.card_r = ModernMetricCard("CALCULATED LOAD", "---", "Ω", DARK_ACCENT_RESISTANCE)
 
-        self.card_volt = ModernMetricCard("Voltage", "V", DARK_ACCENT_VOLTAGE)
-        self.card_curr = ModernMetricCard("Current", "A", DARK_ACCENT_CURRENT)
-        self.card_pow  = ModernMetricCard("Power", "W", DARK_ACCENT_POWER)
-        self.card_res  = ModernMetricCard("Load Res.", "Ω", DARK_ACCENT_RESISTANCE)
+        left_layout.addWidget(self.card_v)
+        left_layout.addWidget(self.card_i)
+        left_layout.addWidget(self.card_p)
+        left_layout.addWidget(self.card_r)
 
-        cards_row.addWidget(self.card_volt)
-        cards_row.addWidget(self.card_curr)
-        cards_row.addWidget(self.card_pow)
-        cards_row.addWidget(self.card_res)
-        right_col.addLayout(cards_row)
+        # Master Output Control Card
+        card_out = QGroupBox("Master Power Output")
+        out_layout = QVBoxLayout(card_out)
+        out_layout.setContentsMargins(10, 12, 10, 10)
+        out_layout.setSpacing(8)
 
-        # Real-time Trend Plot
-        self.trend_plot = TimeSeriesPlotWidget("Real-Time PSU Telemetry Trend (60 FPS)")
-        self.trend_plot.add_trace("voltage", "Voltage (V)", DARK_ACCENT_VOLTAGE)
-        self.trend_plot.add_trace("current", "Current (A)", DARK_ACCENT_CURRENT)
-        self.trend_plot.add_trace("power", "Power (W)", DARK_ACCENT_POWER)
-        right_col.addWidget(self.trend_plot, 1)
+        self.btn_output = QPushButton("⚡ OUTPUT OFF")
+        self.btn_output.setObjectName("danger")
+        self.btn_output.setFixedHeight(48)
+        self.btn_output.setStyleSheet("font-size: 11pt; font-weight: 800; letter-spacing: 0.5px;")
+        self.btn_output.clicked.connect(self._toggle_output)
+        out_layout.addWidget(self.btn_output)
 
-        main_layout.addLayout(right_col, 1)
+        self.lbl_local_warning = QLabel("Front Panel Locked (Remote Software Control)")
+        self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #8B94AD;")
+        self.lbl_local_warning.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        out_layout.addWidget(self.lbl_local_warning)
 
-    def _request_output_on(self):
-        v = self.spin_v_set.value()
-        if self.chk_high_volt_safety.isChecked() and v > 50.0:
-            res = QMessageBox.warning(
-                self, "High Voltage Interlock Confirmation",
-                f"You are engaging HIGH VOLTAGE output at {v:.1f} V (> 50 V).\nEnsure load isolation and circuit safety.",
-                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-            )
-            if res != QMessageBox.StandardButton.Ok:
-                return
-        self.output_state_requested.emit(True)
+        left_layout.addWidget(card_out)
+        left_layout.addStretch()
 
-    def _apply_voltage(self):
-        v = self.spin_v_set.value()
-        self.card_volt.update_setpoint(v, decimals=2)
-        self.set_voltage_requested.emit(v)
+        self.splitter.addWidget(left_widget)
 
-    def _apply_current(self):
-        i = self.spin_i_set.value()
-        self.card_curr.update_setpoint(i, decimals=4)
-        self.set_current_requested.emit(i)
+        # ---------------------------------------------------------------------
+        # RIGHT PANEL: Setpoints & Config wrapped in QScrollArea
+        # ---------------------------------------------------------------------
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.Shape.NoFrame)
 
-    def _apply_power(self):
-        p = self.spin_p_set.value()
-        self.card_pow.update_setpoint(p, decimals=1)
-        self.set_power_requested.emit(p)
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(6, 0, 0, 0)
+        right_layout.setSpacing(10)
 
-    def _apply_ovp(self):
-        ovp = self.spin_ovp_set.value()
-        self.set_ovp_requested.emit(ovp)
+        # 1. Collapsible Section: Remote Setpoints (Expanded by default)
+        self.sec_setpoints = CollapsibleSection("Remote Setpoints & Compliance Limits")
+        self.sec_setpoints.setStatus("V: 0.00V | I: 0.000A | P: 0W")
+
+        setpoints_container = QWidget()
+        sp_layout = QGridLayout(setpoints_container)
+        sp_layout.setContentsMargins(0, 4, 0, 4)
+        sp_layout.setHorizontalSpacing(10)
+        sp_layout.setVerticalSpacing(8)
+
+        # Voltage Setpoint
+        sp_layout.addWidget(QLabel("Voltage Setpoint (U):"), 0, 0)
+        self.spin_v = QDoubleSpinBox()
+        self.spin_v.setRange(0.0, 1000.0)
+        self.spin_v.setDecimals(2)
+        self.spin_v.setSuffix(" V")
+        self.spin_v.setSingleStep(1.0)
+        sp_layout.addWidget(self.spin_v, 0, 1)
+
+        self.btn_apply_v = QPushButton("Apply")
+        self.btn_apply_v.setObjectName("primary")
+        self.btn_apply_v.clicked.connect(lambda: self.set_voltage_requested.emit(self.spin_v.value()))
+        sp_layout.addWidget(self.btn_apply_v, 0, 2)
+
+        # Current Compliance Limit
+        sp_layout.addWidget(QLabel("Current Limit (I):"), 1, 0)
+        self.spin_i = QDoubleSpinBox()
+        self.spin_i.setRange(0.0, 7.0)
+        self.spin_i.setDecimals(4)
+        self.spin_i.setSuffix(" A")
+        self.spin_i.setSingleStep(0.1)
+        sp_layout.addWidget(self.spin_i, 1, 1)
+
+        self.btn_apply_i = QPushButton("Apply")
+        self.btn_apply_i.setObjectName("primary")
+        self.btn_apply_i.clicked.connect(lambda: self.set_current_requested.emit(self.spin_i.value()))
+        sp_layout.addWidget(self.btn_apply_i, 1, 2)
+
+        # Power Limit
+        sp_layout.addWidget(QLabel("Power Limit (P):"), 2, 0)
+        self.spin_p = QDoubleSpinBox()
+        self.spin_p.setRange(0.0, 4000.0)
+        self.spin_p.setDecimals(1)
+        self.spin_p.setSuffix(" W")
+        self.spin_p.setSingleStep(50.0)
+        sp_layout.addWidget(self.spin_p, 2, 1)
+
+        self.btn_apply_p = QPushButton("Apply")
+        self.btn_apply_p.setObjectName("primary")
+        self.btn_apply_p.clicked.connect(lambda: self.set_power_requested.emit(self.spin_p.value()))
+        sp_layout.addWidget(self.btn_apply_p, 2, 2)
+
+        # Over-Voltage Protection (OVP)
+        sp_layout.addWidget(QLabel("Over-Voltage Prot (OVP):"), 3, 0)
+        self.spin_ovp = QDoubleSpinBox()
+        self.spin_ovp.setRange(0.0, 1050.0)
+        self.spin_ovp.setDecimals(1)
+        self.spin_ovp.setSuffix(" V")
+        self.spin_ovp.setValue(1050.0)
+        sp_layout.addWidget(self.spin_ovp, 3, 1)
+
+        self.btn_apply_ovp = QPushButton("Apply")
+        self.btn_apply_ovp.clicked.connect(lambda: self.set_ovp_requested.emit(self.spin_ovp.value()))
+        sp_layout.addWidget(self.btn_apply_ovp, 3, 2)
+
+        self.sec_setpoints.setContentWidget(setpoints_container)
+        self.sec_setpoints.setExpanded(True)
+        right_layout.addWidget(self.sec_setpoints)
+
+        # 2. Collapsible Section: Operating Mode Selection (Collapsed by default)
+        self.sec_mode = CollapsibleSection("Operating Mode Selection")
+        self.sec_mode.setStatus("CV Mode")
+
+        mode_container = QWidget()
+        mode_layout = QHBoxLayout(mode_container)
+        mode_layout.setContentsMargins(0, 4, 0, 4)
+        mode_layout.setSpacing(15)
+
+        self.mode_group = QButtonGroup(self)
+        self.rb_cv = QRadioButton("Constant Voltage (CV)")
+        self.rb_cc = QRadioButton("Constant Current (CC)")
+        self.rb_cp = QRadioButton("Constant Power (CP)")
+        self.rb_cv.setChecked(True)
+
+        self.mode_group.addButton(self.rb_cv)
+        self.mode_group.addButton(self.rb_cc)
+        self.mode_group.addButton(self.rb_cp)
+
+        self.rb_cv.toggled.connect(lambda chk: chk and self._on_mode_toggled("CV"))
+        self.rb_cc.toggled.connect(lambda chk: chk and self._on_mode_toggled("CC"))
+        self.rb_cp.toggled.connect(lambda chk: chk and self._on_mode_toggled("CP"))
+
+        mode_layout.addWidget(self.rb_cv)
+        mode_layout.addWidget(self.rb_cc)
+        mode_layout.addWidget(self.rb_cp)
+        mode_layout.addStretch()
+
+        self.sec_mode.setContentWidget(mode_container)
+        self.sec_mode.setExpanded(False)
+        right_layout.addWidget(self.sec_mode)
+
+        # 3. Collapsible Section: Hardware Safety & Trip Status (Collapsed by default)
+        self.sec_status = CollapsibleSection("Hardware Safety & Trip Status")
+        self.sec_status.setStatus("All Systems Nominal")
+
+        status_container = QWidget()
+        stat_layout = QGridLayout(status_container)
+        stat_layout.setContentsMargins(0, 4, 0, 4)
+        stat_layout.setHorizontalSpacing(10)
+        stat_layout.setVerticalSpacing(8)
+
+        self.badge_ovp = QLabel("● OVP TRIP")
+        self.badge_ovp.setStyleSheet("font-weight: bold; color: #64748B; font-size: 9pt;")
+        stat_layout.addWidget(self.badge_ovp, 0, 0)
+
+        self.badge_ocp = QLabel("● OCP TRIP")
+        self.badge_ocp.setStyleSheet("font-weight: bold; color: #64748B; font-size: 9pt;")
+        stat_layout.addWidget(self.badge_ocp, 0, 1)
+
+        self.badge_otp = QLabel("● OTP TRIP")
+        self.badge_otp.setStyleSheet("font-weight: bold; color: #64748B; font-size: 9pt;")
+        stat_layout.addWidget(self.badge_otp, 1, 0)
+
+        self.badge_opp = QLabel("● OPP TRIP")
+        self.badge_opp.setStyleSheet("font-weight: bold; color: #64748B; font-size: 9pt;")
+        stat_layout.addWidget(self.badge_opp, 1, 1)
+
+        self.sec_status.setContentWidget(status_container)
+        self.sec_status.setExpanded(False)
+        right_layout.addWidget(self.sec_status)
+
+        right_layout.addStretch()
+        right_scroll.setWidget(right_widget)
+
+        self.splitter.addWidget(right_scroll)
+
+        # Set Splitter Stretch Factors (35% Left, 65% Right)
+        self.splitter.setStretchFactor(0, 35)
+        self.splitter.setStretchFactor(1, 65)
+
+        outer_layout.addWidget(self.splitter)
+
+    def _on_mode_toggled(self, mode: str):
+        self.sec_mode.setStatus(f"{mode} Mode")
+        self.operating_mode_requested.emit(mode)
+
+    def _toggle_output(self):
+        curr = self.btn_output.property("active") == "true"
+        new_state = not curr
+        self.output_state_requested.emit(new_state)
 
     def update_telemetry(self, t_sec: float, v: float, i: float, p: float, r: float):
-        self.card_volt.update_measurement(v, decimals=2)
-        self.card_curr.update_measurement(i, decimals=4)
-        self.card_pow.update_measurement(p, decimals=1)
-        self.card_res.update_measurement(r if not math.isinf(r) else 9999.0, decimals=2)
+        self.card_v.set_value(f"{v:.2f}")
+        self.card_i.set_value(f"{i:.4f}")
+        self.card_p.set_value(f"{p:.1f}")
 
-        self.trend_plot.append_data_point(t_sec, {
-            "voltage": v,
-            "current": i,
-            "power": p
-        })
-
-    def update_output_state(self, on: bool):
-        if on:
-            self.btn_output_on.setText("⚡ OUTPUT ACTIVE (ON)")
-            self.btn_output_on.setStyleSheet("background-color: #15803D; border: 2px solid #4ADE80; color: #FFFFFF; font-weight: bold;")
-            self.btn_output_off.setStyleSheet("")
-        else:
-            self.btn_output_on.setText("⚡ OUTPUT ON")
-            self.btn_output_on.setStyleSheet("")
-            self.btn_output_off.setStyleSheet("background-color: #450A0A; border: 2px solid #EF4444; color: #FCA5A5; font-weight: bold;")
-
-    def update_status_badges(self, status: Dict[str, Any]):
-        for key, (badge, color) in self.status_badges.items():
-            active = False
-            if key == "OVP" and status.get("ovp_trip", False): active = True
-            elif key == "CurrLim" and status.get("current_limit", False): active = True
-            elif key == "PowLim" and status.get("power_limit", False): active = True
-            elif key == "Standby" and status.get("standby", False): active = True
-            elif key == "Remote" and not self.is_local_mode: active = True
-            elif key == "Local" and self.is_local_mode: active = True
-
-            if active:
-                badge.setStyleSheet(f"""
-                    background-color: {color}22;
-                    border: 1px solid {color};
-                    color: {color};
-                    font-size: 8pt;
-                    font-weight: 700;
-                    padding: 4px;
-                    border-radius: 4px;
-                """)
+        if r > 0 and not math.isinf(r):
+            if r > 1000.0:
+                self.card_r.set_value(f"{r/1000.0:.2f} k")
             else:
-                badge.setStyleSheet("""
-                    background-color: #1a1c22;
-                    border: 1px solid #2b2f38;
-                    color: #555b68;
-                    font-size: 8pt;
-                    font-weight: 700;
-                    padding: 4px;
-                    border-radius: 4px;
-                """)
+                self.card_r.set_value(f"{r:.2f}")
+        else:
+            self.card_r.set_value("---")
+
+    def update_output_state(self, is_on: bool):
+        if is_on:
+            self.btn_output.setText("⚡ OUTPUT ON")
+            self.btn_output.setObjectName("success")
+            self.btn_output.setProperty("active", "true")
+        else:
+            self.btn_output.setText("⚡ OUTPUT OFF")
+            self.btn_output.setObjectName("danger")
+            self.btn_output.setProperty("active", "false")
+        self.btn_output.style().unpolish(self.btn_output)
+        self.btn_output.style().polish(self.btn_output)
+
+    def update_status_badges(self, ovp: bool, ocp: bool, otp: bool, opp: bool):
+        self.badge_ovp.setStyleSheet("font-weight: bold; color: #EF4444; font-size: 9pt;" if ovp else "font-weight: bold; color: #64748B; font-size: 9pt;")
+        self.badge_ocp.setStyleSheet("font-weight: bold; color: #EF4444; font-size: 9pt;" if ocp else "font-weight: bold; color: #64748B; font-size: 9pt;")
+        self.badge_otp.setStyleSheet("font-weight: bold; color: #EF4444; font-size: 9pt;" if otp else "font-weight: bold; color: #64748B; font-size: 9pt;")
+        self.badge_opp.setStyleSheet("font-weight: bold; color: #EF4444; font-size: 9pt;" if opp else "font-weight: bold; color: #64748B; font-size: 9pt;")
+
+        tripped = []
+        if ovp: tripped.append("OVP")
+        if ocp: tripped.append("OCP")
+        if otp: tripped.append("OTP")
+        if opp: tripped.append("OPP")
+        if tripped:
+            self.sec_status.setStatus(f"TRIPPED: {', '.join(tripped)}")
+        else:
+            self.sec_status.setStatus("All Systems Nominal")
 
     def set_connected(self, connected: bool):
-        self.btn_output_on.setEnabled(connected and not self.is_local_mode)
-        self.btn_output_off.setEnabled(connected and not self.is_local_mode)
-        self.spin_v_set.setEnabled(connected and not self.is_local_mode)
-        self.spin_i_set.setEnabled(connected and not self.is_local_mode)
-        self.spin_p_set.setEnabled(connected and not self.is_local_mode)
-        self.spin_ovp_set.setEnabled(connected and not self.is_local_mode)
-        self.btn_apply_v.setEnabled(connected and not self.is_local_mode)
-        self.btn_apply_i.setEnabled(connected and not self.is_local_mode)
-        self.btn_apply_p.setEnabled(connected and not self.is_local_mode)
-        self.btn_apply_ovp.setEnabled(connected and not self.is_local_mode)
-        self.btn_apply_mode.setEnabled(connected and not self.is_local_mode)
+        self.is_connected = connected
+        self.btn_output.setEnabled(connected and not self.is_local)
+        self.btn_apply_v.setEnabled(connected and not self.is_local)
+        self.btn_apply_i.setEnabled(connected and not self.is_local)
+        self.btn_apply_p.setEnabled(connected and not self.is_local)
+        self.btn_apply_ovp.setEnabled(connected and not self.is_local)
+        self.rb_cv.setEnabled(connected and not self.is_local)
+        self.rb_cc.setEnabled(connected and not self.is_local)
+        self.rb_cp.setEnabled(connected and not self.is_local)
 
     def set_local_mode(self, is_local: bool):
-        self.is_local_mode = is_local
-        self.lbl_local_notice.setVisible(is_local)
-        self.set_connected(True)
+        self.is_local = is_local
+        if is_local:
+            self.lbl_local_warning.setText("Front Panel ACTIVE (Local Physical Control)")
+            self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #F59E0B; font-weight: bold;")
+        else:
+            self.lbl_local_warning.setText("Front Panel Locked (Remote Software Control)")
+            self.lbl_local_warning.setStyleSheet("font-size: 8pt; color: #8B94AD;")
+        self.set_connected(self.is_connected)
 
     def set_theme(self, is_dark: bool):
         self.is_dark = is_dark
-        v_col = DARK_ACCENT_VOLTAGE if is_dark else LIGHT_ACCENT_VOLTAGE
-        i_col = DARK_ACCENT_CURRENT if is_dark else LIGHT_ACCENT_CURRENT
-        p_col = DARK_ACCENT_POWER if is_dark else LIGHT_ACCENT_POWER
-        r_col = DARK_ACCENT_RESISTANCE if is_dark else LIGHT_ACCENT_RESISTANCE
-
-        self.card_volt.set_theme(is_dark, v_col)
-        self.card_curr.set_theme(is_dark, i_col)
-        self.card_pow.set_theme(is_dark, p_col)
-        self.card_res.set_theme(is_dark, r_col)
-        self.trend_plot.set_theme(is_dark)
+        self.card_v.set_theme(is_dark)
+        self.card_i.set_theme(is_dark)
+        self.card_p.set_theme(is_dark)
+        self.card_r.set_theme(is_dark)

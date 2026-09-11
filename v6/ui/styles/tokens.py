@@ -1,17 +1,34 @@
-"""UI Color and Typographic Tokens for Dark (Slate Control) and Light (Clean Laboratory) themes."""
+"""UI Color and Typographic Tokens for Dark (Polaris / Slate Control) and Light (Clean Laboratory) themes."""
 
-# Dark Theme: "Slate Control"
-DARK_BG = "#0F1117"
-DARK_CARD_BG = "#1A1D24"
-DARK_CARD_HOVER = "#262B33"
-DARK_BORDER = "#2F3540"
-DARK_TEXT_PRIMARY = "#E8EDF2"
-DARK_TEXT_SECONDARY = "#8B95A5"
+# Polaris Dark Theme Accents (Aurora Trio)
+POLARIS_STAR = "#F5E6C8"      # Brand, headings — warm cream
+POLARIS_AURORA = "#7DD3FC"    # Primary interactive — soft cyan
+POLARIS_NEBULA = "#A78BFA"    # Secondary — soft violet
 
-DARK_ACCENT_VOLTAGE = "#4A9BDB"
-DARK_ACCENT_CURRENT = "#3FB58C"
-DARK_ACCENT_POWER = "#D4A04A"
-DARK_ACCENT_RESISTANCE = "#9B7FD4"
+# Backward-compatible shortcuts
+star = POLARIS_STAR
+aurora = POLARIS_AURORA
+nebula = POLARIS_NEBULA
+
+# Dark Theme: Polaris Dark Palette
+DARK_BG = "#05070E"
+DARK_CARD_BG = "#0E1220"
+DARK_CARD_HOVER = "#121828"
+DARK_BORDER = "#1B2238"
+DARK_BORDER_HOVER = "#2A3455"
+DARK_TEXT_PRIMARY = "#E8ECF5"
+DARK_TEXT_SECONDARY = "#8B94AD"
+
+DARK_ACCENT_VOLTAGE = "#7DD3FC"
+DARK_ACCENT_CURRENT = "#4ADE80"
+DARK_ACCENT_POWER = "#FBBF24"
+DARK_ACCENT_RESISTANCE = "#A78BFA"
+
+# Backward compatibility color aliases
+sky_primary = "#7DD3FC"
+emerald_success = "#4ADE80"
+gold_warning = "#FBBF24"
+violet_accent = "#A78BFA"
 
 # Light Theme: "Clean Laboratory"
 LIGHT_BG = "#F8FAFC"
@@ -27,10 +44,10 @@ LIGHT_ACCENT_POWER = "#D97706"
 LIGHT_ACCENT_RESISTANCE = "#9333EA"
 
 # Oscilloscope Channel Trace Colors (Industry Standard Tek/Keysight/R&S)
-SCOPE_CH1_COLOR = "#F59E0B"  # Amber / Yellow
-SCOPE_CH2_COLOR = "#38BDF8"  # Cyan / Light Blue
+SCOPE_CH1_COLOR = "#FBBF24"  # Amber / Yellow
+SCOPE_CH2_COLOR = "#7DD3FC"  # Cyan / Light Blue
 SCOPE_CH3_COLOR = "#EC4899"  # Pink / Magenta
-SCOPE_CH4_COLOR = "#10B981"  # Emerald Green
-SCOPE_MATH_COLOR = "#A855F7" # Purple
-SCOPE_GRID_DARK = "#262B33"
+SCOPE_CH4_COLOR = "#4ADE80"  # Emerald Green
+SCOPE_MATH_COLOR = "#A78BFA" # Purple / Nebula
+SCOPE_GRID_DARK = "#1B2238"
 SCOPE_GRID_LIGHT = "#E2E8F0"

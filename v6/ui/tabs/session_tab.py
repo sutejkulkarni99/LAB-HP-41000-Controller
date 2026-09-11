@@ -1,4 +1,4 @@
-"""SessionTab — Multi-instrument unified session logging and manifest coordinator."""
+"""SessionTab — Multi-instrument unified session logging and manifest coordinator with collapsible sections."""
 import os
 import subprocess
 import sys
@@ -9,7 +9,8 @@ try:
     from PyQt6.QtWidgets import (
         QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
         QLabel, QLineEdit, QTextEdit, QPushButton, QTableWidget,
-        QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox, QFrame
+        QTableWidgetItem, QHeaderView, QFileDialog, QMessageBox, QFrame,
+        QScrollArea, QSizePolicy
     )
     from PyQt6.QtCore import Qt, pyqtSignal
 except ImportError:
@@ -40,11 +41,19 @@ except ImportError:
             Stretch = 1
     class QFrame:
         def __init__(self, parent=None): pass
+    class QScrollArea:
+        def __init__(self, parent=None): pass
+    class QSizePolicy:
+        class Policy:
+            Preferred = 0
+            Expanding = 1
     def pyqtSignal(*args, **kwargs):
         class Sig:
             def connect(self, s): pass
             def emit(self, *a): pass
         return Sig()
+
+from ..widgets.collapsible import CollapsibleSection
 
 
 class SessionTab(QWidget):
@@ -62,18 +71,18 @@ class SessionTab(QWidget):
         self.is_logging = False
         self.active_session_dir: str = str(Path.cwd() / "sessions")
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(12)
+        main_vbox = QVBoxLayout(self)
+        main_vbox.setContentsMargins(10, 10, 10, 10)
+        main_vbox.setSpacing(10)
 
         # Top Card: Session Clock & Master Controls
         clock_card = QFrame()
         clock_card.setStyleSheet("""
             QFrame {
-                background-color: #12141A;
-                border: 1px solid #282C37;
+                background-color: #0E1220;
+                border: 1px solid #1B2238;
                 border-radius: 8px;
-                padding: 10px;
+                padding: 6px;
             }
         """)
         c_layout = QHBoxLayout(clock_card)
@@ -81,9 +90,9 @@ class SessionTab(QWidget):
 
         clock_box = QVBoxLayout()
         lbl_clock_title = QLabel("SYNCHRONIZED SESSION CLOCK")
-        lbl_clock_title.setStyleSheet("font-size: 8pt; font-weight: 700; color: #64748B; letter-spacing: 1px;")
+        lbl_clock_title.setStyleSheet("font-size: 8pt; font-weight: 700; color: #8B94AD; letter-spacing: 1px;")
         self.lbl_clock = QLabel("00:00:00.000")
-        self.lbl_clock.setStyleSheet("font-size: 26pt; font-weight: 900; font-family: monospace; color: #38BDF8;")
+        self.lbl_clock.setStyleSheet("font-size: 24pt; font-weight: 900; font-family: monospace; color: #7DD3FC;")
         clock_box.addWidget(lbl_clock_title)
         clock_box.addWidget(self.lbl_clock)
         c_layout.addLayout(clock_box)
@@ -91,32 +100,46 @@ class SessionTab(QWidget):
         c_layout.addStretch()
 
         # Big Buttons
-        self.btn_start = QPushButton("▶ START RECORDING SESSION")
+        self.btn_start = QPushButton("▶ START RECORDING")
         self.btn_start.setObjectName("success")
-        self.btn_start.setFixedHeight(46)
-        self.btn_start.setStyleSheet("font-size: 11pt; font-weight: 800; padding: 0 20px;")
+        self.btn_start.setFixedHeight(44)
+        self.btn_start.setStyleSheet("font-size: 10pt; font-weight: 800; padding: 0 16px;")
         self.btn_start.clicked.connect(self._on_start_clicked)
         c_layout.addWidget(self.btn_start)
 
         self.btn_pause = QPushButton("⏸ PAUSE")
-        self.btn_pause.setFixedHeight(46)
+        self.btn_pause.setFixedHeight(44)
         self.btn_pause.setEnabled(False)
         self.btn_pause.clicked.connect(self.session_pause_requested.emit)
         c_layout.addWidget(self.btn_pause)
 
-        self.btn_stop = QPushButton("⏹ STOP & SEAL MANIFEST")
+        self.btn_stop = QPushButton("⏹ STOP & SEAL")
         self.btn_stop.setObjectName("danger")
-        self.btn_stop.setFixedHeight(46)
+        self.btn_stop.setFixedHeight(44)
         self.btn_stop.setEnabled(False)
-        self.btn_stop.setStyleSheet("font-size: 11pt; font-weight: 800; padding: 0 20px;")
+        self.btn_stop.setStyleSheet("font-size: 10pt; font-weight: 800; padding: 0 16px;")
         self.btn_stop.clicked.connect(self._on_stop_clicked)
         c_layout.addWidget(self.btn_stop)
 
-        layout.addWidget(clock_card)
+        main_vbox.addWidget(clock_card)
 
-        # Middle Grid: Metadata Configuration & Directory
-        meta_box = QGroupBox("Session Manifest & Experiment Metadata")
-        m_layout = QGridLayout(meta_box)
+        # Scrollable middle area for Collapsible sections
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        # 1. Collapsible Section: Metadata Configuration & Directory (Expanded)
+        self.sec_metadata = CollapsibleSection("Session Manifest & Experiment Metadata")
+        self.sec_metadata.setStatus("PROJ-LABHP-VAL-001")
+
+        meta_container = QWidget()
+        m_layout = QGridLayout(meta_container)
+        m_layout.setContentsMargins(4, 4, 4, 4)
         m_layout.setHorizontalSpacing(10)
         m_layout.setVerticalSpacing(8)
 
@@ -140,11 +163,17 @@ class SessionTab(QWidget):
         self.btn_browse.clicked.connect(self._browse_dir)
         m_layout.addWidget(self.btn_browse, 2, 3)
 
-        layout.addWidget(meta_box)
+        self.sec_metadata.setContentWidget(meta_container)
+        self.sec_metadata.setExpanded(True)
+        layout.addWidget(self.sec_metadata)
 
-        # Multi-Instrument Logging Status Table
-        tbl_box = QGroupBox("Active Multi-Instrument Storage Streams")
-        t_layout = QVBoxLayout(tbl_box)
+        # 2. Collapsible Section: Multi-Instrument Logging Status Table (Expanded)
+        self.sec_streams = CollapsibleSection("Active Multi-Instrument Storage Streams")
+        self.sec_streams.setStatus("2 Streams Registered")
+
+        tbl_container = QWidget()
+        t_layout = QVBoxLayout(tbl_container)
+        t_layout.setContentsMargins(4, 4, 4, 4)
 
         self.table = QTableWidget(2, 5)
         self.table.setHorizontalHeaderLabels([
@@ -164,7 +193,13 @@ class SessionTab(QWidget):
                 self.table.setItem(row, col, item)
 
         t_layout.addWidget(self.table)
-        layout.addWidget(tbl_box, 1)
+        self.sec_streams.setContentWidget(tbl_container)
+        self.sec_streams.setExpanded(True)
+        layout.addWidget(self.sec_streams)
+
+        layout.addStretch()
+        scroll_area.setWidget(scroll_content)
+        main_vbox.addWidget(scroll_area, 1)
 
         # Bottom Actions & Live Log Console
         bot_row = QHBoxLayout()
@@ -174,15 +209,15 @@ class SessionTab(QWidget):
 
         bot_row.addStretch()
         self.lbl_session_status = QLabel("Status: Session Idle. Ready to record.")
-        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #94A3B8;")
+        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #8B94AD;")
         bot_row.addWidget(self.lbl_session_status)
-        layout.addLayout(bot_row)
+        main_vbox.addLayout(bot_row)
 
         self.term_log = QTextEdit()
         self.term_log.setReadOnly(True)
-        self.term_log.setFixedHeight(90)
-        self.term_log.setStyleSheet("font-family: monospace; font-size: 8.5pt; background-color: #0F1117;")
-        layout.addWidget(self.term_log)
+        self.term_log.setFixedHeight(80)
+        self.term_log.setStyleSheet("font-family: monospace; font-size: 8.5pt; background-color: #05070E;")
+        main_vbox.addWidget(self.term_log)
 
     def _browse_dir(self):
         d = QFileDialog.getExistingDirectory(self, "Select Session Output Directory", self.txt_dir.text())
@@ -219,7 +254,7 @@ class SessionTab(QWidget):
         self.txt_dir.setEnabled(False)
         self.btn_browse.setEnabled(False)
         self.lbl_session_status.setText("Status: RECORDING SYNCHRONIZED MULTI-INSTRUMENT SESSION")
-        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #22C55E;")
+        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #4ADE80;")
         self.log_message(f"Started session '{meta['project']}' by '{meta['operator']}'.")
         self.session_start_requested.emit(meta)
 
@@ -234,7 +269,7 @@ class SessionTab(QWidget):
         self.txt_dir.setEnabled(True)
         self.btn_browse.setEnabled(True)
         self.lbl_session_status.setText("Status: SESSION COMPLETE & MANIFEST SEALED")
-        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #38BDF8;")
+        self.lbl_session_status.setStyleSheet("font-weight: 700; color: #7DD3FC;")
         self.log_message("Stopped session and wrote manifest.json.")
         self.session_stop_requested.emit()
 

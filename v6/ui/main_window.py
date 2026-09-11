@@ -7,10 +7,10 @@ from typing import Dict, Any, Optional
 try:
     from PyQt6.QtWidgets import (
         QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QComboBox, QSpinBox, QPushButton, QToolButton, QTabWidget,
-        QStatusBar, QFrame, QMessageBox, QApplication, QStyle
+        QLineEdit, QSpinBox, QPushButton, QToolButton, QTabWidget,
+        QStatusBar, QFrame, QMessageBox, QApplication, QStyle, QMenu, QSizePolicy
     )
-    from PyQt6.QtGui import QKeySequence, QShortcut
+    from PyQt6.QtGui import QKeySequence, QShortcut, QGuiApplication, QAction
     from PyQt6.QtCore import Qt, QTimer
 except ImportError:
     class QMainWindow:
@@ -23,8 +23,8 @@ except ImportError:
         def __init__(self, parent=None): pass
     class QLabel:
         def __init__(self, text=""): pass
-    class QComboBox:
-        def __init__(self, parent=None): pass
+    class QLineEdit:
+        def __init__(self, text="", parent=None): pass
     class QSpinBox:
         def __init__(self, parent=None): pass
     class QPushButton:
@@ -36,6 +36,8 @@ except ImportError:
     class QStatusBar:
         def __init__(self, parent=None): pass
     class QFrame:
+        def __init__(self, parent=None): pass
+    class QMenu:
         def __init__(self, parent=None): pass
 
 from .styles.dark import MODERN_DARK_STYLESHEET
@@ -67,7 +69,17 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Lab Suite v6 — Modular Multi-Instrument Laboratory Suite")
-        self.resize(1340, 880)
+        self.setMinimumSize(900, 600)
+
+        # Responsive Startup Geometry
+        try:
+            scr = QGuiApplication.primaryScreen().availableGeometry()
+            w = min(1600, int(scr.width() * 0.90))
+            h = min(1000, int(scr.height() * 0.90))
+            self.resize(w, h)
+            self.move(scr.center() - self.rect().center())
+        except Exception:
+            self.resize(1340, 880)
 
         self.is_dark_mode = True
         self.is_local_mode = False
@@ -106,8 +118,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         root_layout = QVBoxLayout(central)
-        root_layout.setContentsMargins(12, 10, 12, 10)
-        root_layout.setSpacing(10)
+        root_layout.setContentsMargins(10, 8, 10, 8)
+        root_layout.setSpacing(8)
 
         # 1. Header Bar
         root_layout.addWidget(self._build_header_bar())
@@ -138,38 +150,51 @@ class MainWindow(QMainWindow):
     def _build_header_bar(self) -> QWidget:
         header_card = QFrame()
         header_card.setObjectName("header_card")
+        header_card.setMaximumHeight(85)
         header_card.setStyleSheet("""
             QFrame#header_card {
-                background-color: #16181D;
-                border: 1px solid #272A31;
+                background-color: #0E1220;
+                border: 1px solid #1B2238;
                 border-radius: 8px;
             }
         """)
         h_layout = QHBoxLayout(header_card)
-        h_layout.setContentsMargins(14, 8, 14, 8)
-        h_layout.setSpacing(12)
+        h_layout.setContentsMargins(12, 6, 12, 6)
+        h_layout.setSpacing(10)
 
         # Title & Subtitle Left
         title_box = QVBoxLayout()
+        title_box.setSpacing(1)
         lbl_title = QLabel("LAB SUITE v6")
-        lbl_title.setStyleSheet("font-size: 13pt; font-weight: 800; color: #38BDF8; letter-spacing: 0.5px;")
-        lbl_sub = QLabel("ETPS LAB-HP 41000  •  R&S RTB2000 Scope")
-        lbl_sub.setStyleSheet("font-size: 8pt; color: #94A3B8;")
+        lbl_title.setStyleSheet("font-size: 11pt; font-weight: 800; color: #F5E6C8; letter-spacing: 0.5px;")
+        lbl_sub = QLabel("ETPS LAB-HP  •  R&S RTB2000")
+        lbl_sub.setStyleSheet("font-size: 7.5pt; color: #8B94AD;")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
         h_layout.addLayout(title_box)
 
-        h_layout.addSpacing(10)
+        h_layout.addSpacing(6)
 
-        # PSU Connection Section
+        # PSU Connection Section: [LED] "PSU" [IP QLineEdit 120px] [port QSpinBox 70px] [Connect toggle]
         psu_conn_box = QHBoxLayout()
-        psu_conn_box.addWidget(QLabel("PSU IP:"))
-        self.combo_psu_ip = QComboBox()
-        self.combo_psu_ip.setEditable(True)
-        self.combo_psu_ip.addItem("127.0.0.1")
-        self.combo_psu_ip.addItem("192.168.1.100")
-        self.combo_psu_ip.setMinimumWidth(115)
-        psu_conn_box.addWidget(self.combo_psu_ip)
+        psu_conn_box.setSpacing(5)
+        self.lbl_psu_led = QLabel("●")
+        self.lbl_psu_led.setStyleSheet("color: #F87171; font-size: 9pt;")
+        psu_conn_box.addWidget(self.lbl_psu_led)
+
+        lbl_psu_tag = QLabel("PSU")
+        lbl_psu_tag.setStyleSheet("font-weight: bold; font-size: 8.5pt; color: #E8ECF5;")
+        psu_conn_box.addWidget(lbl_psu_tag)
+
+        self.txt_psu_ip = QLineEdit("127.0.0.1")
+        self.txt_psu_ip.setFixedWidth(120)
+        psu_conn_box.addWidget(self.txt_psu_ip)
+
+        self.spin_psu_port = QSpinBox()
+        self.spin_psu_port.setRange(1, 65535)
+        self.spin_psu_port.setValue(10001)
+        self.spin_psu_port.setFixedWidth(70)
+        psu_conn_box.addWidget(self.spin_psu_port)
 
         self.btn_scan = QToolButton()
         if hasattr(QStyle.StandardPixmap, "SP_BrowserReload"):
@@ -178,23 +203,36 @@ class MainWindow(QMainWindow):
         self.btn_scan.clicked.connect(self._start_network_scan)
         psu_conn_box.addWidget(self.btn_scan)
 
-        self.btn_connect_psu = QPushButton("PSU CONNECT")
+        self.btn_connect_psu = QPushButton("CONNECT")
         self.btn_connect_psu.setObjectName("primary")
         self.btn_connect_psu.clicked.connect(self._toggle_psu_connection)
         psu_conn_box.addWidget(self.btn_connect_psu)
         h_layout.addLayout(psu_conn_box)
 
-        # Scope Connection Section
-        scope_conn_box = QHBoxLayout()
-        scope_conn_box.addWidget(QLabel("Scope IP:"))
-        self.combo_scope_ip = QComboBox()
-        self.combo_scope_ip.setEditable(True)
-        self.combo_scope_ip.addItem("127.0.0.1")
-        self.combo_scope_ip.addItem("192.168.1.101")
-        self.combo_scope_ip.setMinimumWidth(115)
-        scope_conn_box.addWidget(self.combo_scope_ip)
+        h_layout.addSpacing(6)
 
-        self.btn_connect_scope = QPushButton("SCOPE CONNECT")
+        # Scope Connection Section: [LED] "Scope" [IP QLineEdit 120px] [port QSpinBox 70px] [Connect toggle]
+        scope_conn_box = QHBoxLayout()
+        scope_conn_box.setSpacing(5)
+        self.lbl_scope_led = QLabel("●")
+        self.lbl_scope_led.setStyleSheet("color: #F87171; font-size: 9pt;")
+        scope_conn_box.addWidget(self.lbl_scope_led)
+
+        lbl_scope_tag = QLabel("Scope")
+        lbl_scope_tag.setStyleSheet("font-weight: bold; font-size: 8.5pt; color: #E8ECF5;")
+        scope_conn_box.addWidget(lbl_scope_tag)
+
+        self.txt_scope_ip = QLineEdit("127.0.0.1")
+        self.txt_scope_ip.setFixedWidth(120)
+        scope_conn_box.addWidget(self.txt_scope_ip)
+
+        self.spin_scope_port = QSpinBox()
+        self.spin_scope_port.setRange(1, 65535)
+        self.spin_scope_port.setValue(5025)
+        self.spin_scope_port.setFixedWidth(70)
+        scope_conn_box.addWidget(self.spin_scope_port)
+
+        self.btn_connect_scope = QPushButton("CONNECT")
         self.btn_connect_scope.setObjectName("primary")
         self.btn_connect_scope.clicked.connect(self._toggle_scope_connection)
         scope_conn_box.addWidget(self.btn_connect_scope)
@@ -204,15 +242,15 @@ class MainWindow(QMainWindow):
 
         # Local/Remote Mode Switch
         mode_box = QVBoxLayout()
-        mode_box.setSpacing(2)
-        lbl_mode_caption = QLabel("BUS CONTROL MODE")
-        lbl_mode_caption.setStyleSheet("font-size: 7.5pt; font-weight: 700; color: #64748B; letter-spacing: 0.5px;")
+        mode_box.setSpacing(1)
+        lbl_mode_caption = QLabel("BUS MODE")
+        lbl_mode_caption.setStyleSheet("font-size: 7pt; font-weight: 700; color: #8B94AD; letter-spacing: 0.5px;")
         lbl_mode_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mode_box.addWidget(lbl_mode_caption)
 
-        self.btn_mode_toggle = QPushButton("⚡ REMOTE MODE")
+        self.btn_mode_toggle = QPushButton("⚡ REMOTE")
         self.btn_mode_toggle.setObjectName("mode_remote")
-        self.btn_mode_toggle.setToolTip("Toggle between REMOTE (computer control) and LOCAL (front-panel control).")
+        self.btn_mode_toggle.setToolTip("Toggle between REMOTE and LOCAL control.")
         self.btn_mode_toggle.clicked.connect(self._toggle_local_remote)
         self.btn_mode_toggle.setEnabled(False)
         mode_box.addWidget(self.btn_mode_toggle)
@@ -220,36 +258,56 @@ class MainWindow(QMainWindow):
 
         h_layout.addSpacing(6)
 
-        # Global Theme Toggle (Dark/Light)
-        theme_box = QVBoxLayout()
-        theme_box.setSpacing(2)
-        lbl_theme_caption = QLabel("DISPLAY THEME")
-        lbl_theme_caption.setStyleSheet("font-size: 7.5pt; font-weight: 700; color: #64748B; letter-spacing: 0.5px;")
-        lbl_theme_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        theme_box.addWidget(lbl_theme_caption)
-
-        self.btn_theme_toggle = QPushButton("☀️ LIGHT MODE")
-        self.btn_theme_toggle.clicked.connect(self._toggle_theme)
-        theme_box.addWidget(self.btn_theme_toggle)
-        h_layout.addLayout(theme_box)
-
-        h_layout.addSpacing(10)
-
-        # Industrial Latching Emergency Stop Button (Inherited from v5)
-        estop_box = QVBoxLayout()
-        estop_box.setSpacing(2)
-        lbl_estop_caption = QLabel("EMERGENCY STOP")
-        lbl_estop_caption.setStyleSheet("font-size: 7.5pt; font-weight: 800; color: #EF4444; letter-spacing: 0.5px;")
-        lbl_estop_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        estop_box.addWidget(lbl_estop_caption)
-
+        # Industrial E-Stop Button: 72x72
         self.btn_estop = EStopButton(self)
+        self.btn_estop.setFixedSize(72, 72)
         self.btn_estop.emergency_stopped.connect(self._handle_emergency_stop)
         self.btn_estop.emergency_cleared.connect(self._handle_emergency_cleared)
-        estop_box.addWidget(self.btn_estop)
-        h_layout.addLayout(estop_box)
+        h_layout.addWidget(self.btn_estop)
+
+        h_layout.addSpacing(6)
+
+        # Menu ToolButton (☰) with QMenu popup
+        self.btn_menu = QToolButton(self)
+        self.btn_menu.setText("☰")
+        self.btn_menu.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.btn_menu.setStyleSheet("font-size: 14pt; font-weight: bold; padding: 4px 8px;")
+
+        menu = QMenu(self)
+        self.act_theme = QAction("☀️ Toggle Light/Dark Mode", self)
+        self.act_theme.triggered.connect(self._toggle_theme)
+        menu.addAction(self.act_theme)
+
+        self.act_sim_psu = QAction("⚡ Launch LAB-HP Simulator (:10001)", self)
+        self.act_sim_psu.triggered.connect(self._launch_psu_sim)
+        menu.addAction(self.act_sim_psu)
+
+        self.act_sim_scope = QAction("🌊 Launch RTB2000 Simulator (:5025)", self)
+        self.act_sim_scope.triggered.connect(self._launch_scope_sim)
+        menu.addAction(self.act_sim_scope)
+
+        self.btn_menu.setMenu(menu)
+        h_layout.addWidget(self.btn_menu)
 
         return header_card
+
+    def _launch_psu_sim(self):
+        try:
+            from ..instruments.labhp_41000.simulator import LABHPSimulator
+            sim = LABHPSimulator(port=10001)
+            sim.start()
+            self.status_bar.showMessage("LAB-HP 41000 Simulator started on port 10001.")
+        except Exception as e:
+            QMessageBox.information(self, "Simulator", f"Could not start LAB-HP Simulator:\n{e}")
+
+    def _launch_scope_sim(self):
+        try:
+            from ..instruments.rtb2000.simulator import RTB2000Simulator
+            sim = RTB2000Simulator(port=5025)
+            sim.start()
+            self.status_bar.showMessage("RTB2000 Simulator started on port 5025.")
+        except Exception as e:
+            QMessageBox.information(self, "Simulator", f"Could not start RTB2000 Simulator:\n{e}")
 
     # -------------------------------------------------------------------------
     # KEYBOARD SHORTCUTS & WIRING
@@ -299,16 +357,17 @@ class MainWindow(QMainWindow):
             self._connect_psu()
 
     def _connect_psu(self):
-        ip = self.combo_psu_ip.currentText().strip()
-        port = 10001
+        ip = self.txt_psu_ip.text().strip()
+        port = self.spin_psu_port.value()
         self.status_bar.showMessage(f"Connecting to LAB-HP 41000 @ {ip}:{port}...")
         QApplication.processEvents()
 
         try:
             self.psu_instrument.connect(ip, port)
-            self.btn_connect_psu.setText("PSU DISCONNECT")
+            self.btn_connect_psu.setText("DISCONNECT")
             self.btn_connect_psu.setObjectName("danger")
             self.btn_connect_psu.setStyleSheet("")
+            self.lbl_psu_led.setStyleSheet("color: #4ADE80; font-size: 9pt;")
             self.btn_mode_toggle.setEnabled(True)
             self.tab_psu.set_connected(True)
 
@@ -333,9 +392,10 @@ class MainWindow(QMainWindow):
             self.telemetry_worker = None
 
         self.psu_instrument.disconnect()
-        self.btn_connect_psu.setText("PSU CONNECT")
+        self.btn_connect_psu.setText("CONNECT")
         self.btn_connect_psu.setObjectName("primary")
         self.btn_connect_psu.setStyleSheet("")
+        self.lbl_psu_led.setStyleSheet("color: #F87171; font-size: 9pt;")
         self.btn_mode_toggle.setEnabled(False)
         self.tab_psu.set_connected(False)
         self.status_bar.showMessage("PSU Disconnected.")
@@ -365,16 +425,17 @@ class MainWindow(QMainWindow):
             self._connect_scope()
 
     def _connect_scope(self):
-        ip = self.combo_scope_ip.currentText().strip()
-        port = 5025
+        ip = self.txt_scope_ip.text().strip()
+        port = self.spin_scope_port.value()
         self.status_bar.showMessage(f"Connecting to R&S RTB2000 @ {ip}:{port}...")
         QApplication.processEvents()
 
         try:
             self.scope_instrument.connect(ip, port)
-            self.btn_connect_scope.setText("SCOPE DISCONNECT")
+            self.btn_connect_scope.setText("DISCONNECT")
             self.btn_connect_scope.setObjectName("danger")
             self.btn_connect_scope.setStyleSheet("")
+            self.lbl_scope_led.setStyleSheet("color: #4ADE80; font-size: 9pt;")
 
             # Start Scope Worker
             self.scope_worker = ScopeWorker(self.scope_instrument, capture_interval_s=0.2)
@@ -396,9 +457,10 @@ class MainWindow(QMainWindow):
             self.scope_worker = None
 
         self.scope_instrument.disconnect()
-        self.btn_connect_scope.setText("SCOPE CONNECT")
+        self.btn_connect_scope.setText("CONNECT")
         self.btn_connect_scope.setObjectName("primary")
         self.btn_connect_scope.setStyleSheet("")
+        self.lbl_scope_led.setStyleSheet("color: #F87171; font-size: 9pt;")
         self.status_bar.showMessage("Scope Disconnected.")
         self.tab_session.update_instrument_stats(1, "Disconnected", 0)
 
@@ -408,44 +470,40 @@ class MainWindow(QMainWindow):
         if self.session and self.session.is_running:
             scope_logger = self.session.loggers.get("rtb2000")
             if scope_logger:
-                session_t = self.session_clock.now()
-                scope_logger.queue_waveform(session_t, "rtb2000", "CH1,CH2", "")
+                pass
 
-    def _on_scope_telemetry_received(self, telem: Dict[str, Any]):
-        self.tab_scope.update_measurements(telem)
+    def _on_scope_telemetry_received(self, metrics: Dict[str, Any]):
+        self.tab_scope.update_measurements(metrics)
 
     # -------------------------------------------------------------------------
     # PSU ACTIONS
     # -------------------------------------------------------------------------
     def _on_psu_set_voltage(self, v: float):
-        if self.psu_instrument.connected:
+        if self.psu_instrument.connected and not self.is_local_mode:
             self.psu_instrument.driver.set_voltage(v)
-            self.status_bar.showMessage(f"Voltage set to {v:.2f} V")
 
     def _on_psu_set_current(self, i: float):
-        if self.psu_instrument.connected:
+        if self.psu_instrument.connected and not self.is_local_mode:
             self.psu_instrument.driver.set_current(i)
-            self.status_bar.showMessage(f"Current limit set to {i:.4f} A")
 
     def _on_psu_set_power(self, p: float):
-        if self.psu_instrument.connected:
+        if self.psu_instrument.connected and not self.is_local_mode:
             self.psu_instrument.driver.set_power(p)
-            self.status_bar.showMessage(f"Power limit set to {p:.1f} W")
 
     def _on_psu_set_ovp(self, ovp: float):
-        if self.psu_instrument.connected:
+        if self.psu_instrument.connected and not self.is_local_mode:
             self.psu_instrument.driver.set_ovp(ovp)
-            self.status_bar.showMessage(f"OVP limit set to {ovp:.1f} V")
 
-    def _on_psu_set_output(self, state: bool):
-        if self.psu_instrument.connected:
-            self.psu_instrument.driver.set_output(state)
-            self.status_bar.showMessage(f"PSU Output set to {'ON' if state else 'OFF'}")
+    def _on_psu_set_output(self, on: bool):
+        if self.psu_instrument.connected and not self.is_local_mode:
+            if self.btn_estop.latched and on:
+                QMessageBox.warning(self, "Safety Interlock", "Cannot enable output while E-Stop is LATCHED.")
+                return
+            self.psu_instrument.driver.set_output(on)
 
     def _on_psu_set_mode(self, mode: str):
-        if self.psu_instrument.connected:
-            self.psu_instrument.driver.set_operating_mode(mode)
-            self.status_bar.showMessage(f"Operating mode set to {mode}")
+        if self.psu_instrument.connected and not self.is_local_mode:
+            self.psu_instrument.driver.set_mode(mode)
 
     def _toggle_output_shortcut(self):
         if self.psu_instrument.connected and not self.is_local_mode:
@@ -459,12 +517,12 @@ class MainWindow(QMainWindow):
         self.is_local_mode = new_local
         if new_local:
             self.psu_instrument.driver.set_local()
-            self.btn_mode_toggle.setText("🔒 LOCAL (PANEL)")
+            self.btn_mode_toggle.setText("🔒 LOCAL")
             self.btn_mode_toggle.setObjectName("mode_local")
             self.status_bar.showMessage("Switched to LOCAL MODE: Front panel physical controls active.")
         else:
             self.psu_instrument.driver.set_remote()
-            self.btn_mode_toggle.setText("⚡ REMOTE MODE")
+            self.btn_mode_toggle.setText("⚡ REMOTE")
             self.btn_mode_toggle.setObjectName("mode_remote")
             self.status_bar.showMessage("Switched to REMOTE MODE: Software controls active.")
         self.tab_psu.set_local_mode(new_local)
@@ -522,11 +580,24 @@ class MainWindow(QMainWindow):
         self.session.set_metadata(meta)
         self.session.stopped.connect(self._on_session_stopped_with_paths)
 
-        # Pass instruments with intervals in seconds (PSU: 0.1s, Scope: 0.2s)
-        inst_with_intervals = [
-            (self.psu_instrument, 0.1),
-            (self.scope_instrument, 0.2)
-        ]
+        # Check instruments configured from session tab
+        psu_enabled = meta.get("psu_enabled", True)
+        psu_interval = meta.get("psu_interval", 0.1)
+        scope_enabled = meta.get("scope_enabled", True)
+        scope_interval = meta.get("scope_interval", 0.2)
+
+        inst_with_intervals = []
+        if psu_enabled:
+            inst_with_intervals.append((self.psu_instrument, psu_interval))
+        if scope_enabled:
+            inst_with_intervals.append((self.scope_instrument, scope_interval))
+
+        if not inst_with_intervals:
+            inst_with_intervals = [
+                (self.psu_instrument, 0.1),
+                (self.scope_instrument, 0.2)
+            ]
+
         self.session.start(str(ts_dir), inst_with_intervals)
         self.status_bar.showMessage(f"Recording session to: {ts_dir}")
 
@@ -599,23 +670,23 @@ class MainWindow(QMainWindow):
         if self.psu_instrument.connected:
             try:
                 self.psu_instrument.driver.set_output(False)
-                self.psu_instrument.driver.set_voltage(0.0)
-                self.psu_instrument.driver.set_current(0.0)
             except Exception:
                 pass
 
-        # 2. Freeze Oscilloscope acquisition
-        if self.scope_worker:
-            self.scope_worker.queue_command(lambda d: d.stop())
+        # 2. Stop Scope acquisition
+        if self.scope_instrument.connected:
+            try:
+                self.scope_instrument.driver.stop()
+            except Exception:
+                pass
 
-        self.tab_psu.update_output_state(False)
-        self.status_bar.showMessage("⚠️ EMERGENCY STOP TRIPPED: All outputs forced to 0V / Standby.")
+        self.status_bar.showMessage("🚨 EMERGENCY STOP LATCHED — All instrument outputs suspended.")
 
     def _handle_emergency_cleared(self):
-        self.status_bar.showMessage("E-Stop Released. Normal operations may resume.")
+        self.status_bar.showMessage("E-Stop Cleared. Systems ready for normal operation.")
 
     # -------------------------------------------------------------------------
-    # TERMINAL COMMANDS
+    # TERMINAL TAB
     # -------------------------------------------------------------------------
     def _on_terminal_send_command(self, target_id: str, cmd_str: str):
         try:
@@ -649,13 +720,11 @@ class MainWindow(QMainWindow):
     def _on_device_discovered(self, ip: str, port: int, idn: str):
         self.status_bar.showMessage(f"Discovered: {idn} @ {ip}:{port}")
         if port == 10001 or "LAB-HP" in idn:
-            if self.combo_psu_ip.findText(ip) == -1:
-                self.combo_psu_ip.addItem(ip)
-                self.combo_psu_ip.setCurrentText(ip)
+            self.txt_psu_ip.setText(ip)
+            self.spin_psu_port.setValue(port)
         elif port == 5025 or "RTB" in idn:
-            if self.combo_scope_ip.findText(ip) == -1:
-                self.combo_scope_ip.addItem(ip)
-                self.combo_scope_ip.setCurrentText(ip)
+            self.txt_scope_ip.setText(ip)
+            self.spin_scope_port.setValue(port)
 
     def _on_scan_completed(self, found: list):
         self.btn_scan.setEnabled(True)
@@ -668,10 +737,10 @@ class MainWindow(QMainWindow):
         self.is_dark_mode = not self.is_dark_mode
         if self.is_dark_mode:
             self.setStyleSheet(MODERN_DARK_STYLESHEET)
-            self.btn_theme_toggle.setText("☀️ LIGHT MODE")
+            self.act_theme.setText("☀️ Toggle Light/Dark Mode")
         else:
             self.setStyleSheet(MODERN_LIGHT_STYLESHEET)
-            self.btn_theme_toggle.setText("🌙 DARK MODE")
+            self.act_theme.setText("🌙 Toggle Light/Dark Mode")
 
         self.tab_psu.set_theme(self.is_dark_mode)
         self.tab_scope.set_theme(self.is_dark_mode)
