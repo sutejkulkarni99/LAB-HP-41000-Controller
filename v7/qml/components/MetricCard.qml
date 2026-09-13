@@ -1,4 +1,5 @@
 import QtQuick
+import v7.qml 1.0
 import ".."
 
 Rectangle {

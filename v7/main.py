@@ -1,8 +1,9 @@
 import os
 import sys
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterSingletonType
 from PySide6.QtCore import QUrl
+from pathlib import Path
 
 from .instruments import (
     LabhpDriver,
@@ -42,6 +43,12 @@ def main():
     archive_bridge = ArchiveBridge()
     theme_bridge = ThemeBridge()
 
+    qml_dir = Path(__file__).parent / "qml"
+    qmlRegisterSingletonType(
+        QUrl.fromLocalFile(str(qml_dir / "Theme.qml")),
+        "v7.qml", 1, 0, "Theme"
+    )
+
     # QML Engine setup
     engine = QQmlApplicationEngine()
 
@@ -51,12 +58,10 @@ def main():
     root_context.setContextProperty("archiveBridge", archive_bridge)
     root_context.setContextProperty("themeBridge", theme_bridge)
 
-    qml_dir = os.path.join(os.path.dirname(__file__), "qml")
-    engine.addImportPath(qml_dir)
-    engine.addImportPath(os.path.join(qml_dir, "components"))
+    engine.addImportPath(str(qml_dir))
+    engine.addImportPath(str(qml_dir / "components"))
 
-    main_qml = os.path.join(qml_dir, "Main.qml")
-    engine.load(QUrl.fromLocalFile(main_qml))
+    engine.load(QUrl.fromLocalFile(str(qml_dir / "Main.qml")))
 
     if not engine.rootObjects():
         sys.exit(-1)

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import v7.qml 1.0
 import ".."
 
 Rectangle {
