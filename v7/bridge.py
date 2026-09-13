@@ -40,6 +40,7 @@ class InstrumentsBridge(QObject):
     instrumentConnected = Signal(str)
     instrumentDisconnected = Signal(str)
     connectionFailed = Signal(str, str)
+    connectionCleared = Signal(str)
     telemetryUpdated = Signal(str, 'QVariantMap')
     statusUpdated = Signal(str, 'QVariantMap')
     waveformUpdated = Signal(str, 'QVariantMap')
@@ -101,30 +102,31 @@ class InstrumentsBridge(QObject):
 
     @Slot(str, str)
     def requestConnect(self, short_id: str, hint: str) -> None:
-        inst = self._instruments.get(short_id)
-        if inst and inst.connected:
+        if short_id in self._instruments and getattr(self._instruments[short_id], "connected", False):
             return
+        inst = self._instruments.get(short_id)
+        if not inst:
+            if short_id == "labhp_41000":
+                inst = LabhpDriver()
+            elif short_id == "rtb2000":
+                inst = Rtb2000Driver()
+            elif short_id == "mso2004b":
+                inst = TektronixMso2004BDriver()
+            elif short_id == "fg_edu33212a":
+                inst = KeysightEdu33212ADriver()
+            else:
+                inst = LabhpDriver()
+            self._instruments[short_id] = inst
+            self.instruments[short_id] = inst
+
         try:
-            if not inst:
-                if short_id == "labhp_41000":
-                    inst = LabhpDriver()
-                elif short_id == "rtb2000":
-                    inst = Rtb2000Driver()
-                elif short_id == "mso2004b":
-                    inst = TektronixMso2004BDriver()
-                elif short_id == "fg_edu33212a":
-                    inst = KeysightEdu33212ADriver()
-                else:
-                    inst = LabhpDriver()
-                self._instruments[short_id] = inst
-                self.instruments[short_id] = inst
+            inst.connect(hint)
+        except Exception as e:
+            self.connectionFailed.emit(short_id, str(e))
+            return
 
-            try:
-                transport = parse_resource(hint)
-                inst.connect(hint)
-            except Exception:
-                inst.connect(hint)
-
+        try:
+            self.connectionCleared.emit(short_id)
             worker = TelemetryWorker(inst, interval_s=0.2)
             worker.measurements.connect(self._on_measurements)
             worker.connection_lost.connect(self._on_connection_lost)

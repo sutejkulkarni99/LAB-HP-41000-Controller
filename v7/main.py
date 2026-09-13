@@ -5,22 +5,44 @@ from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterSingletonType
 from PySide6.QtCore import QUrl
 from pathlib import Path
 
-from .instruments import (
-    LabhpDriver,
-    Rtb2000Driver,
-    KeysightEdu33212ADriver,
-    TektronixMso2004BDriver
-)
-from .clock import SessionClock
-from .session import LoggingSession
-from .bridge import (
-    InstrumentsBridge,
-    SessionBridge,
-    ArchiveBridge,
-    ThemeBridge
-)
+try:
+    from v7.instruments import (
+        LabhpDriver,
+        Rtb2000Driver,
+        KeysightEdu33212ADriver,
+        TektronixMso2004BDriver
+    )
+    from v7.clock import SessionClock
+    from v7.session import LoggingSession
+    from v7.bridge import (
+        InstrumentsBridge,
+        SessionBridge,
+        ArchiveBridge,
+        ThemeBridge
+    )
+except ImportError:
+    from instruments import (
+        LabhpDriver,
+        Rtb2000Driver,
+        KeysightEdu33212ADriver,
+        TektronixMso2004BDriver
+    )
+    from clock import SessionClock
+    from session import LoggingSession
+    from bridge import (
+        InstrumentsBridge,
+        SessionBridge,
+        ArchiveBridge,
+        ThemeBridge
+    )
+
+instruments_bridge = None
+session_bridge = None
+archive_bridge = None
+theme_bridge = None
 
 def main():
+    global instruments_bridge, session_bridge, archive_bridge, theme_bridge
     app = QGuiApplication(sys.argv)
     app.setOrganizationName("LabOrchestrator")
     app.setApplicationName("LabBenchOrchestratorV7")

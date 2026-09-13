@@ -25,11 +25,17 @@ ApplicationWindow {
     Connections {
         target: instrumentsBridge
         function onInstrumentConnected(short_id) {
+            window.statusText = "";
+            if (statusLabel) statusLabel.text = "";
             if (short_id === "labhp_41000") window.psuConnected = true;
             else if (short_id === "rtb2000") window.rtbConnected = true;
             else if (short_id === "mso2004b") window.tekConnected = true;
             else if (short_id === "fg_edu33212a") window.genConnected = true;
             if (benchView) benchView.setConnected(short_id, true);
+        }
+        function onConnectionCleared(short_id) {
+            window.statusText = "";
+            if (statusLabel) statusLabel.text = "";
         }
         function onInstrumentDisconnected(short_id) {
             if (short_id === "labhp_41000") window.psuConnected = false;

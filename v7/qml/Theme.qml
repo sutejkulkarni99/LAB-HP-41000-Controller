@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    property bool isDark: (typeof themeBridge !== "undefined") ? themeBridge.isDark : true
+    property bool isDark: (typeof themeBridge !== "undefined" && themeBridge !== null) ? themeBridge.isDark : true
 
     readonly property color bg: isDark ? "#05070E" : "#F8FAFC"
     readonly property color card: isDark ? "#0E1220" : "#FFFFFF"
