@@ -20,6 +20,7 @@ class InstrumentsBridge(QObject):
     instrumentDisconnected = Signal(str)
     telemetryUpdated = Signal(str, 'QVariantMap')
     statusUpdated = Signal(str, 'QVariantMap')
+    waveformUpdated = Signal(str, 'QVariantMap')
 
     def __init__(self, instruments: dict[str, Instrument], parent=None):
         super().__init__(parent)
@@ -34,7 +35,7 @@ class InstrumentsBridge(QObject):
         try:
             inst.connect(resource)
             self.instrumentConnected.emit(short_id)
-            # Start telemetry worker
+            # Start telemetry worker querying real hardware
             worker = TelemetryWorker(inst, interval_s=0.2)
             worker.measurements.connect(lambda s_id, m: self.telemetryUpdated.emit(s_id, m))
             worker.status.connect(lambda s_id, s: self.statusUpdated.emit(s_id, s))
@@ -53,6 +54,26 @@ class InstrumentsBridge(QObject):
         if inst:
             inst.disconnect()
             self.instrumentDisconnected.emit(short_id)
+
+    @Slot(str, 'QStringList')
+    def captureWaveform(self, short_id: str, channels: list) -> None:
+        inst = self.instruments.get(short_id)
+        if not inst or not inst.connected or not inst.supports_waveform:
+            return
+        try:
+            wf = inst.capture_waveform(list(channels))
+            ch_data = {}
+            for k, v in wf.get("channels", {}).items():
+                ch_data[k] = v.tolist() if isinstance(v, np.ndarray) else list(v)
+            t_data = wf.get("time", [])
+            t_list = t_data.tolist() if isinstance(t_data, np.ndarray) else list(t_data)
+            self.waveformUpdated.emit(short_id, {
+                "time": t_list,
+                "channels": ch_data,
+                "metadata": wf.get("metadata", {})
+            })
+        except Exception:
+            pass
 
     @Slot(str, float)
     def setPsuSetpoint(self, kind: str, value: float) -> None:
@@ -150,11 +171,13 @@ class SessionBridge(QObject):
 
     @Property(str, notify=clockUpdated)
     def clockLabel(self) -> str:
+        if not self._running:
+            return "00:00:00.000"
         secs = int(self.clock.elapsed())
         m, s = divmod(secs, 60)
         h, m = divmod(m, 60)
-        ms = int((self.clock.elapsed() - secs) * 100)
-        return f"{h:02d}:{m:02d}:{s:02d}.{ms:02d}"
+        ms = int((self.clock.elapsed() - secs) * 1000)
+        return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
 
     @Property('QVariantMap', notify=clockUpdated)
     def rowCounts(self) -> dict:

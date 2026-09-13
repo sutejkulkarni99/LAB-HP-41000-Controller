@@ -54,23 +54,8 @@ Rectangle {
                 }
             }
 
-            // 3. Synthetic Multi-channel Series
-            function drawChannel(color, offset) {
-                ctx.setLineDash([]);
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                for (var px = 0; px < width; px += 4) {
-                    var py = (height / 2) + Math.sin(px * 0.02 + offset) * (height * 0.28);
-                    if (px === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                }
-                ctx.stroke();
-            }
-
-            drawChannel(Theme.accent, 0);
-            drawChannel(Theme.warn, 1.2);
-            drawChannel(Theme.ok, 2.5);
+            // 3. Series plotting (only when real data exists)
+            // Empty state handled below if no archive loaded
 
             // 4. Cursor Line
             ctx.strokeStyle = Theme.brand;
@@ -81,6 +66,15 @@ Rectangle {
             ctx.lineTo(root.cursorX * width, height);
             ctx.stroke();
         }
+    }
+
+    Text {
+        anchors.centerIn: parent
+        text: "No session archive loaded"
+        color: Theme.muted
+        font.pixelSize: 13
+        font.bold: true
+        visible: !archiveBridge.treeModel || archiveBridge.treeModel.length === 0
     }
 
     Connections {

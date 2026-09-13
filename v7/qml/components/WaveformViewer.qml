@@ -44,20 +44,53 @@ Rectangle {
             radius: 4
 
             Canvas {
+                id: wfCanvas
                 anchors.fill: parent
                 onPaint: {
                     var ctx = getContext("2d");
                     ctx.clearRect(0, 0, width, height);
-                    ctx.strokeStyle = Theme.accent;
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    for (var i = 0; i < width; ++i) {
-                        var y = (height / 2) + Math.sin(i * 0.05) * (height * 0.35);
-                        if (i === 0) ctx.moveTo(i, y);
-                        else ctx.lineTo(i, y);
+
+                    // Grid
+                    ctx.strokeStyle = Theme.border;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 4]);
+                    for (var gx = 1; gx < 8; ++gx) {
+                        ctx.beginPath();
+                        ctx.moveTo((gx / 8) * width, 0);
+                        ctx.lineTo((gx / 8) * width, height);
+                        ctx.stroke();
                     }
-                    ctx.stroke();
+                    for (var gy = 1; gy < 4; ++gy) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, (gy / 4) * height);
+                        ctx.lineTo(width, (gy / 4) * height);
+                        ctx.stroke();
+                    }
+
+                    // Only draw if real samples exist in waveformData
+                    var samples = root.waveformData && root.waveformData.samples ? root.waveformData.samples : [];
+                    if (samples && samples.length > 0) {
+                        ctx.setLineDash([]);
+                        ctx.strokeStyle = Theme.accent;
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        for (var i = 0; i < samples.length && i < width; ++i) {
+                            var px = (i / samples.length) * width;
+                            var py = (height / 2) - samples[i] * 20;
+                            if (i === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                        ctx.stroke();
+                    }
                 }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "No waveform data loaded"
+                color: Theme.muted
+                font.pixelSize: 11
+                visible: !root.waveformData || !root.waveformData.samples || root.waveformData.samples.length === 0
             }
         }
     }

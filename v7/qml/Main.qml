@@ -15,75 +15,95 @@ ApplicationWindow {
     color: Theme.bg
 
     property int activeMode: 0 // 0: Bench, 1: Protocol, 2: Archive
+    property bool psuConnected: false
+    property bool rtbConnected: false
+    property bool tekConnected: false
+    property bool genConnected: false
+
+    Connections {
+        target: instrumentsBridge
+        function onInstrumentConnected(shortId) {
+            if (shortId === "labhp_41000") window.psuConnected = true;
+            else if (shortId === "rtb2000") window.rtbConnected = true;
+            else if (shortId === "mso2004b") window.tekConnected = true;
+            else if (shortId === "fg_edu33212a") window.genConnected = true;
+        }
+        function onInstrumentDisconnected(shortId) {
+            if (shortId === "labhp_41000") window.psuConnected = false;
+            else if (shortId === "rtb2000") window.rtbConnected = false;
+            else if (shortId === "mso2004b") window.tekConnected = false;
+            else if (shortId === "fg_edu33212a") window.genConnected = false;
+        }
+    }
 
     Column {
         anchors.fill: parent
 
-        // Main Navigation & Header Bar
+        // Main Navigation & Header Bar (Canonical Top Bar)
         Rectangle {
             width: parent.width
-            height: 56
+            height: 52
             color: Theme.card
             border.color: Theme.border
             border.width: 1
 
             Row {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                spacing: 24
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                spacing: 12
 
-                // App Brand
+                // Connection chips (● PSU, ● R&S, ● Tek) - same position always
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: 6
 
-                    Rectangle {
-                        width: 24
-                        height: 24
-                        radius: 6
-                        color: Theme.accent
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "V7"
-                            color: Theme.card
-                            font.pixelSize: 11
-                            font.bold: true
-                        }
+                    ConnectionChip {
+                        instrumentId: "labhp_41000"
+                        title: "PSU"
+                        defaultResource: "192.168.1.100:10001"
+                        connected: window.psuConnected
                     }
 
-                    Text {
-                        text: "LAB BENCH ORCHESTRATOR"
-                        color: Theme.text
-                        font.pixelSize: 15
-                        font.bold: true
-                        anchors.verticalCenter: parent.verticalCenter
+                    ConnectionChip {
+                        instrumentId: "rtb2000"
+                        title: "R&S"
+                        defaultResource: "192.168.1.101:5025"
+                        connected: window.rtbConnected
+                    }
+
+                    ConnectionChip {
+                        instrumentId: "mso2004b"
+                        title: "Tek"
+                        defaultResource: "192.168.1.102:5025"
+                        connected: window.tekConnected
                     }
                 }
 
-                Rectangle { width: 1; height: 26; color: Theme.border; anchors.verticalCenter: parent.verticalCenter }
+                Rectangle { width: 1; height: 24; color: Theme.border; anchors.verticalCenter: parent.verticalCenter }
 
-                // Mode Selectors (Bench, Protocol, Archive)
+                // Mode Selectors (BENCH top-left corner)
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
+                    spacing: 6
 
                     Button {
-                        text: "BENCH (LIVE)"
+                        height: 32
+                        text: "BENCH"
                         highlighted: window.activeMode === 0
                         onClicked: window.activeMode = 0
                     }
 
                     Button {
-                        text: "PROTOCOL (YAML)"
+                        height: 32
+                        text: "PROTOCOL"
                         highlighted: window.activeMode === 1
                         onClicked: window.activeMode = 1
                     }
 
                     Button {
-                        text: "ARCHIVE (ANALYSIS)"
+                        height: 32
+                        text: "ARCHIVE"
                         highlighted: window.activeMode === 2
                         onClicked: window.activeMode = 2
                     }
@@ -91,11 +111,26 @@ ApplicationWindow {
 
                 Item { width: 1; height: 1; Layout.fillWidth: true }
 
-                // Theme Toggle
+                // Theme Toggle (☀/☾)
                 Button {
+                    height: 32
                     anchors.verticalCenter: parent.verticalCenter
-                    text: Theme.isDark ? "☀ LIGHT" : "🌙 DARK"
+                    text: Theme.isDark ? "☀" : "☾"
                     onClicked: themeBridge.toggleTheme()
+                }
+
+                // Menu ☰ (Toggles Inspector Drawer)
+                Button {
+                    id: menuBtn
+                    height: 32
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "☰"
+                    onClicked: inspectorDrawer.open = !inspectorDrawer.open
+                }
+
+                // E-STOP (Far right, always visible)
+                EStopButton {
+                    anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }
@@ -103,11 +138,16 @@ ApplicationWindow {
         // Active View Container
         Item {
             width: parent.width
-            height: parent.height - 56
+            height: parent.height - 52
 
             BenchView {
+                id: benchView
                 anchors.fill: parent
                 visible: window.activeMode === 0
+                onInspectorRequested: function(instId) {
+                    inspectorDrawer.activeInstrumentId = instId;
+                    inspectorDrawer.open = true;
+                }
             }
 
             ProtocolView {
@@ -118,6 +158,11 @@ ApplicationWindow {
             ArchiveView {
                 anchors.fill: parent
                 visible: window.activeMode === 2
+            }
+
+            // Global Inspector Drawer accessible across the app
+            InspectorDrawer {
+                id: inspectorDrawer
             }
         }
     }

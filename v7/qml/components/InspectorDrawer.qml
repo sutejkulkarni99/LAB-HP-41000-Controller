@@ -53,6 +53,10 @@ Rectangle {
                 onClicked: root.activeInstrumentId = "rtb2000"
             }
             Button {
+                text: "TEK"
+                onClicked: root.activeInstrumentId = "mso2004b"
+            }
+            Button {
                 text: "GEN"
                 onClicked: root.activeInstrumentId = "fg_edu33212a"
             }

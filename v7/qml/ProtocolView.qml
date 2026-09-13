@@ -48,18 +48,8 @@ Item {
 
             Button {
                 text: root.running ? "ABORT" : "RUN PROTOCOL"
-                enabled: true
-                onClicked: {
-                    root.running = !root.running;
-                    if (root.running) {
-                        root.currentStep = 0;
-                        root.statusMessage = "Executing Step 1: Ramp Voltage...";
-                        stepTimer.start();
-                    } else {
-                        stepTimer.stop();
-                        root.statusMessage = "Protocol execution aborted.";
-                    }
-                }
+                enabled: false
+                onClicked: {}
             }
         }
 
@@ -190,22 +180,6 @@ Item {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    Timer {
-        id: stepTimer
-        interval: 2500
-        repeat: true
-        onTriggered: {
-            root.currentStep++;
-            if (root.currentStep >= 4) {
-                stepTimer.stop();
-                root.running = false;
-                root.statusMessage = "Protocol sequence finished successfully.";
-            } else {
-                root.statusMessage = "Executing Step " + (root.currentStep + 1) + "...";
             }
         }
     }

@@ -8,18 +8,19 @@ Rectangle {
     property string title: "Instrument"
     property string defaultResource: "192.168.1.100:10001"
     property bool connected: false
+    property bool showResource: false
 
-    height: 36
-    implicitWidth: chipRow.implicitWidth + 24
-    radius: 8
-    color: Theme.card
-    border.color: connected ? Theme.ok : Theme.border
+    height: 32
+    implicitWidth: chipRow.implicitWidth + 16
+    radius: 6
+    color: root.connected ? (Theme.isDark ? "#14532D" : "#DCFCE7") : Theme.card
+    border.color: root.connected ? Theme.ok : Theme.border
     border.width: 1
 
     Row {
         id: chipRow
         anchors.centerIn: parent
-        spacing: 8
+        spacing: 6
 
         Rectangle {
             width: 8
@@ -31,46 +32,32 @@ Rectangle {
 
         Text {
             text: root.title
-            color: Theme.text
-            font.pixelSize: 12
+            color: root.connected ? (Theme.isDark ? "#86EFAC" : "#166534") : Theme.text
+            font.pixelSize: 11
             font.bold: true
             anchors.verticalCenter: parent.verticalCenter
         }
 
         Text {
+            visible: root.showResource
             text: root.defaultResource
             color: Theme.muted
-            font.pixelSize: 11
+            font.pixelSize: 10
             font.family: "Monospace"
             anchors.verticalCenter: parent.verticalCenter
         }
+    }
 
-        Rectangle {
-            width: 54
-            height: 22
-            radius: 4
-            color: root.connected ? Theme.err : Theme.accent
-            anchors.verticalCenter: parent.verticalCenter
-
-            Text {
-                anchors.centerIn: parent
-                text: root.connected ? "DISC" : "CONN"
-                color: Theme.card
-                font.pixelSize: 10
-                font.bold: true
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    if (root.connected) {
-                        instrumentsBridge.disconnectInstrument(root.instrumentId);
-                    } else {
-                        instrumentsBridge.connectInstrument(root.instrumentId, root.defaultResource);
-                    }
-                }
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            if (root.connected) {
+                instrumentsBridge.disconnectInstrument(root.instrumentId);
+            } else {
+                instrumentsBridge.connectInstrument(root.instrumentId, root.defaultResource);
             }
         }
     }
 }
+

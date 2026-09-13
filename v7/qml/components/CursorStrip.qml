@@ -35,7 +35,7 @@ Rectangle {
         Rectangle { width: 1; height: 20; color: Theme.border; anchors.verticalCenter: parent.verticalCenter }
 
         Text {
-            text: "PSU V: 48.00 V"
+            text: "PSU V: " + (archiveBridge.cursorValues["labhp_41000.voltage_meas_v"] !== undefined ? archiveBridge.cursorValues["labhp_41000.voltage_meas_v"].toFixed(2) + " V" : "--")
             color: Theme.accent
             font.pixelSize: 11
             font.family: "Monospace"
@@ -43,7 +43,7 @@ Rectangle {
         }
 
         Text {
-            text: "PSU I: 4.80 A"
+            text: "PSU I: " + (archiveBridge.cursorValues["labhp_41000.current_meas_a"] !== undefined ? archiveBridge.cursorValues["labhp_41000.current_meas_a"].toFixed(3) + " A" : "--")
             color: Theme.warn
             font.pixelSize: 11
             font.family: "Monospace"
@@ -51,7 +51,7 @@ Rectangle {
         }
 
         Text {
-            text: "SCOPE CH1: 2.14 Vrms"
+            text: "SCOPE CH1: " + (archiveBridge.cursorValues["rtb2000.ch1_vrms"] !== undefined ? archiveBridge.cursorValues["rtb2000.ch1_vrms"].toFixed(2) + " Vrms" : "--")
             color: "#FACC15"
             font.pixelSize: 11
             font.family: "Monospace"
