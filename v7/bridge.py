@@ -7,53 +7,199 @@ import numpy as np
 
 from PySide6.QtCore import QObject, Signal, Slot, Property, QTimer
 
-from .contracts import Instrument
-from .clock import SessionClock
-from .session import LoggingSession
-from .waveform import WaveformStore
-from .workers import TelemetryWorker
+try:
+    from v7.contracts import Instrument
+    from v7.clock import SessionClock
+    from v7.session import LoggingSession
+    from v7.waveform import WaveformStore
+    from v7.workers import TelemetryWorker
+    from v7.transport import parse_resource
+    from v7.instruments import (
+        LabhpDriver,
+        Rtb2000Driver,
+        KeysightEdu33212ADriver,
+        TektronixMso2004BDriver
+    )
+except ImportError:
+    from contracts import Instrument
+    from clock import SessionClock
+    from session import LoggingSession
+    from waveform import WaveformStore
+    from workers import TelemetryWorker
+    from transport import parse_resource
+    from instruments import (
+        LabhpDriver,
+        Rtb2000Driver,
+        KeysightEdu33212ADriver,
+        TektronixMso2004BDriver
+    )
 
 class InstrumentsBridge(QObject):
     """Bridge coordinating instrument connections, live telemetry, and control."""
 
     instrumentConnected = Signal(str)
     instrumentDisconnected = Signal(str)
+    connectionFailed = Signal(str, str)
     telemetryUpdated = Signal(str, 'QVariantMap')
     statusUpdated = Signal(str, 'QVariantMap')
     waveformUpdated = Signal(str, 'QVariantMap')
 
-    def __init__(self, instruments: dict[str, Instrument], parent=None):
+    def __init__(self, instruments: dict[str, Instrument] = None, parent=None):
         super().__init__(parent)
-        self.instruments = instruments
+        self._instruments: dict[str, Instrument] = instruments if instruments is not None else {}
+        self.instruments = self._instruments
         self._workers: dict[str, TelemetryWorker] = {}
+        self._waveform_timers: dict[str, QTimer] = {}
 
-    @Slot(str, str)
-    def connectInstrument(self, short_id: str, resource: str) -> None:
-        inst = self.instruments.get(short_id)
-        if not inst:
+    def _capture_and_emit(self, short_id: str) -> None:
+        inst = self._instruments.get(short_id)
+        if not inst or not getattr(inst, "connected", False):
             return
         try:
-            inst.connect(resource)
-            self.instrumentConnected.emit(short_id)
-            # Start telemetry worker querying real hardware
+            channels = ["ch1", "ch2", "ch3", "ch4"]
+            wf = inst.capture_waveform(channels)
+            wave_dict: Dict[str, Any] = {}
+
+            t_data = wf.get("time", [])
+            if isinstance(t_data, np.ndarray):
+                t_list = t_data.tolist()
+            elif isinstance(t_data, (list, tuple)):
+                t_list = list(t_data)
+            else:
+                t_list = []
+            wave_dict["time"] = t_list
+
+            raw_channels = wf.get("channels", {}) if isinstance(wf.get("channels"), dict) else {}
+            for ch in ["ch1", "ch2", "ch3", "ch4"]:
+                val = None
+                if ch in wf:
+                    val = wf[ch]
+                elif ch.upper() in wf:
+                    val = wf[ch.upper()]
+                elif ch in raw_channels:
+                    val = raw_channels[ch]
+                elif ch.upper() in raw_channels:
+                    val = raw_channels[ch.upper()]
+
+                if val is not None:
+                    if isinstance(val, np.ndarray):
+                        v_list = val.tolist()
+                    elif isinstance(val, (list, tuple)):
+                        v_list = list(val)
+                    else:
+                        v_list = []
+                    wave_dict[ch] = v_list
+                    wave_dict[ch.upper()] = v_list
+
+            wave_dict["channels"] = {k: v for k, v in wave_dict.items() if k.startswith("ch") or k.startswith("CH")}
+            if "metadata" in wf:
+                wave_dict["metadata"] = wf["metadata"]
+
+            self.waveformUpdated.emit(short_id, wave_dict)
+        except Exception:
+            pass
+
+    @Slot(str, str)
+    def requestConnect(self, short_id: str, hint: str) -> None:
+        inst = self._instruments.get(short_id)
+        if inst and inst.connected:
+            return
+        try:
+            if not inst:
+                if short_id == "labhp_41000":
+                    inst = LabhpDriver()
+                elif short_id == "rtb2000":
+                    inst = Rtb2000Driver()
+                elif short_id == "mso2004b":
+                    inst = TektronixMso2004BDriver()
+                elif short_id == "fg_edu33212a":
+                    inst = KeysightEdu33212ADriver()
+                else:
+                    inst = LabhpDriver()
+                self._instruments[short_id] = inst
+                self.instruments[short_id] = inst
+
+            try:
+                transport = parse_resource(hint)
+                inst.connect(hint)
+            except Exception:
+                inst.connect(hint)
+
             worker = TelemetryWorker(inst, interval_s=0.2)
-            worker.measurements.connect(lambda s_id, m: self.telemetryUpdated.emit(s_id, m))
-            worker.status.connect(lambda s_id, s: self.statusUpdated.emit(s_id, s))
-            worker.connection_lost.connect(lambda s_id, _: self.disconnectInstrument(s_id))
+            worker.measurements.connect(self._on_measurements)
+            worker.connection_lost.connect(self._on_connection_lost)
             self._workers[short_id] = worker
             worker.start()
+
+            # Start waveform capture loop for scope instruments
+            if getattr(inst, "supports_waveform", False) or short_id in {"rtb2000", "mso2004b"}:
+                if short_id in self._waveform_timers:
+                    self._waveform_timers[short_id].stop()
+                    del self._waveform_timers[short_id]
+                timer = QTimer(self)
+                timer.setInterval(1000)
+                timer.timeout.connect(lambda s=short_id: self._capture_and_emit(s))
+                self._waveform_timers[short_id] = timer
+                timer.start()
+                # Immediate initial capture
+                QTimer.singleShot(50, lambda s=short_id: self._capture_and_emit(s))
+
+            self.instrumentConnected.emit(short_id)
         except Exception as e:
-            self.statusUpdated.emit(short_id, {"error": str(e), "connected": False})
+            self.connectionFailed.emit(short_id, str(e))
 
     @Slot(str)
-    def disconnectInstrument(self, short_id: str) -> None:
+    def requestDisconnect(self, short_id: str) -> None:
+        if short_id in self._waveform_timers:
+            self._waveform_timers[short_id].stop()
+            del self._waveform_timers[short_id]
         if short_id in self._workers:
             self._workers[short_id].stop()
             del self._workers[short_id]
-        inst = self.instruments.get(short_id)
+        inst = self._instruments.get(short_id)
         if inst:
             inst.disconnect()
-            self.instrumentDisconnected.emit(short_id)
+        self.instrumentDisconnected.emit(short_id)
+
+    @Slot(str, dict)
+    def _on_measurements(self, short_id: str, values: dict) -> None:
+        self.telemetryUpdated.emit(short_id, values)
+
+    @Slot(str, str)
+    def _on_connection_lost(self, short_id: str, err: str) -> None:
+        self.connectionFailed.emit(short_id, err)
+        self.requestDisconnect(short_id)
+
+    @Slot(str, str)
+    def connectInstrument(self, short_id: str, resource: str) -> None:
+        self.requestConnect(short_id, resource)
+
+    @Slot(str)
+    def disconnectInstrument(self, short_id: str) -> None:
+        self.requestDisconnect(short_id)
+
+    @Slot(str, str, 'QVariant')
+    @Slot(str, str)
+    def setScopeControl(self, short_id: str, key: str, value: Any = 0) -> None:
+        inst = self._instruments.get(short_id)
+        if not inst:
+            return
+        k = str(key).lower()
+        try:
+            if k == "run":
+                if hasattr(inst, "run"):
+                    inst.run()
+            elif k == "stop":
+                if hasattr(inst, "stop"):
+                    inst.stop()
+            elif k == "single":
+                if hasattr(inst, "single"):
+                    inst.single()
+            elif k == "autoset":
+                if hasattr(inst, "autoset"):
+                    inst.autoset()
+        except Exception:
+            pass
 
     @Slot(str, 'QStringList')
     def captureWaveform(self, short_id: str, channels: list) -> None:
@@ -123,94 +269,173 @@ class SessionBridge(QObject):
     sessionStopped = Signal(str, 'QVariantMap')
     rowLogged = Signal(str, int, str)
     clockUpdated = Signal()
+    clockChanged = Signal()
+    rowCountsChanged = Signal()
+    runningChanged = Signal()
+    pausedChanged = Signal()
 
-    def __init__(self, session: LoggingSession, clock: SessionClock, instruments: dict[str, Instrument], parent=None):
+    def __init__(self, session: Optional[LoggingSession] = None, clock: Optional[SessionClock] = None, instruments: Optional[dict[str, Instrument]] = None, parent=None):
         super().__init__(parent)
-        self.session = session
-        self.clock = clock
-        self.instruments = instruments
+        self._clock = clock if clock is not None else SessionClock()
+        self.clock = self._clock
+        self._session = session
+        self.session = self._session
+        self.instruments: dict[str, Instrument] = instruments if instruments is not None else {}
 
         self._running = False
         self._paused = False
         self._row_counts: dict[str, int] = {}
+        self._session_dir = ""
 
-        self.session.started.connect(self._on_started)
-        self.session.stopped.connect(self._on_stopped)
-        self.session.row.connect(self._on_row)
+        if self._session:
+            self._wire_session(self._session)
 
         self._timer = QTimer(self)
         self._timer.setInterval(100)
-        self._timer.timeout.connect(self.clockUpdated.emit)
+        self._timer.timeout.connect(self._on_timer_tick)
         self._timer.start()
 
-    def _on_started(self, d: str):
+    def _wire_session(self, session: LoggingSession) -> None:
+        try:
+            session.started.connect(self._on_started)
+        except Exception:
+            pass
+        try:
+            session.stopped.connect(self._on_stopped)
+        except Exception:
+            pass
+        try:
+            session.row.connect(self._on_row)
+        except Exception:
+            pass
+
+    def _on_timer_tick(self) -> None:
+        self.clockUpdated.emit()
+        self.clockChanged.emit()
+
+    def _on_started(self, d: str) -> None:
         self._running = True
         self._paused = False
+        self.runningChanged.emit()
+        self.pausedChanged.emit()
         self.sessionStarted.emit(d)
 
-    def _on_stopped(self, d: str, m: dict):
+    def _on_stopped(self, d: str, m: dict) -> None:
         self._running = False
         self._paused = False
+        self.runningChanged.emit()
+        self.pausedChanged.emit()
         self.sessionStopped.emit(d, m)
 
-    def _on_row(self, short_id: str, count: int, ts: str):
+    def _on_row(self, short_id: str, count: int, preview: str = "") -> None:
         self._row_counts[short_id] = count
-        self.rowLogged.emit(short_id, count, ts)
+        self.rowLogged.emit(short_id, count, str(preview))
+        self.rowCountsChanged.emit()
+        self.clockUpdated.emit()
 
-    @Property(bool, notify=clockUpdated)
+    @Property(bool, notify=runningChanged)
     def running(self) -> bool:
         return self._running
 
-    @Property(bool, notify=clockUpdated)
+    @Property(bool, notify=pausedChanged)
     def paused(self) -> bool:
         return self._paused
 
     @Property(float, notify=clockUpdated)
     def elapsed(self) -> float:
-        return round(self.clock.elapsed(), 2)
+        return round(self._clock.elapsed(), 2) if hasattr(self._clock, "elapsed") else 0.0
 
     @Property(str, notify=clockUpdated)
     def clockLabel(self) -> str:
-        if not self._running:
-            return "00:00:00.000"
-        secs = int(self.clock.elapsed())
-        m, s = divmod(secs, 60)
+        if hasattr(self._clock, "formatted_time"):
+            try:
+                return self._clock.formatted_time()
+            except Exception:
+                pass
+        secs = self._clock.elapsed() if hasattr(self._clock, "elapsed") else 0.0
+        total_s = int(secs)
+        m, s = divmod(total_s, 60)
         h, m = divmod(m, 60)
-        ms = int((self.clock.elapsed() - secs) * 1000)
+        ms = int((secs - total_s) * 1000)
         return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
 
-    @Property('QVariantMap', notify=clockUpdated)
+    @Property('QVariantMap', notify=rowCountsChanged)
     def rowCounts(self) -> dict:
         return self._row_counts
 
     @Slot(str, 'QVariantList')
-    def startSession(self, directory: str, instrument_configs: list) -> None:
-        inst_tuples = []
-        for item in instrument_configs:
-            s_id = item.get("short_id")
-            interval = float(item.get("interval_s", 0.1))
-            inst = self.instruments.get(s_id)
-            if inst and inst.connected:
-                inst_tuples.append((inst, interval))
+    @Slot('QVariantList')
+    @Slot()
+    def startSession(self, session_dir: str = "", specs: list = None) -> None:
+        if specs is None:
+            if isinstance(session_dir, list):
+                specs = session_dir
+                session_dir = ""
+            else:
+                specs = []
 
-        if not directory:
-            ts = time.strftime("%Y%m%d_%H%M%S")
-            directory = os.path.join("sessions", f"session_{ts}")
-        self.session.start(directory, inst_tuples)
+        inst_list = []
+        for item in specs:
+            if isinstance(item, dict):
+                s_id = item.get("short_id")
+                interval = float(item.get("interval_s", 0.1))
+                inst = self.instruments.get(s_id)
+                if inst and getattr(inst, "connected", False):
+                    inst_list.append((inst, interval))
+
+        timestamped_name = "session_" + time.strftime("%Y%m%d_%H%M%S")
+        if not session_dir:
+            resolved_dir = os.path.abspath(os.path.join("..", "sessions", timestamped_name))
+        elif not os.path.isabs(session_dir):
+            resolved_dir = os.path.abspath(os.path.join("..", "sessions", session_dir))
+        else:
+            resolved_dir = session_dir
+
+        self._session_dir = resolved_dir
+        self._row_counts.clear()
+        self.rowCountsChanged.emit()
+
+        self._session = LoggingSession(self._clock)
+        self.session = self._session
+        self._wire_session(self._session)
+
+        if hasattr(self._session, "set_metadata"):
+            try:
+                self._session.set_metadata({})
+            except Exception:
+                pass
+
+        os.makedirs(self._session_dir, exist_ok=True)
+        self._session.start(self._session_dir, inst_list)
+        self._running = True
+        self._paused = False
+        self.runningChanged.emit()
+        self.pausedChanged.emit()
+        self.sessionStarted.emit(self._session_dir)
 
     @Slot()
     def pauseSession(self) -> None:
-        self.session.pause()
+        if self._session:
+            self._session.pause()
         self._paused = True
+        self.pausedChanged.emit()
 
     @Slot()
     def resumeSession(self) -> None:
-        self.session.resume()
+        if self._session:
+            self._session.resume()
         self._paused = False
+        self.pausedChanged.emit()
 
     @Slot()
     def stopSession(self) -> None:
-        self.session.stop()
+        if self._session:
+            self._session.stop()
+        self._running = False
+        self._paused = False
+        self.runningChanged.emit()
+        self.pausedChanged.emit()
+        self.sessionStopped.emit(self._session_dir, {})
 
 
 class ArchiveBridge(QObject):

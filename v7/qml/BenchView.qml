@@ -14,10 +14,14 @@ Item {
 
     // Instruments states
     property bool psuConnected: false
-    property real psuV: 0.0
-    property real psuI: 0.0
-    property real psuP: 0.0
-    property real psuR: 0.0
+    property real psuVoltage: 0.0
+    property real psuCurrent: 0.0
+    property real psuPower: 0.0
+    property real psuResistance: 0.0
+    property real psuV: psuVoltage
+    property real psuI: psuCurrent
+    property real psuP: psuPower
+    property real psuR: psuResistance
     property bool psuOut: false
 
     property bool rtbConnected: false
@@ -44,39 +48,70 @@ Item {
 
     readonly property bool isWide: root.width >= 1600
 
+    function setConnected(short_id, isConn) {
+        if (short_id === "labhp_41000") {
+            root.psuConnected = isConn;
+            if (!isConn) {
+                root.psuVoltage = 0;
+                root.psuCurrent = 0;
+                root.psuPower = 0;
+                root.psuResistance = 0;
+            }
+        } else if (short_id === "rtb2000") {
+            root.rtbConnected = isConn;
+            if (!isConn) root.rtbRunning = false;
+        } else if (short_id === "mso2004b") {
+            root.tekConnected = isConn;
+            if (!isConn) root.tekRunning = false;
+        }
+    }
+
+    function updateRtbWaveform(wave) {
+        if (rtbPanel) rtbPanel.updateWaveform(wave);
+    }
+
+    function updateTekWaveform(wave) {
+        if (tekPanel) tekPanel.updateWaveform(wave);
+    }
+
+    function handleTelemetry(short_id, values) {
+        if (short_id === "labhp_41000") {
+            root.psuVoltage = values.voltage_meas_v || values.voltage || 0;
+            root.psuCurrent = values.current_meas_a || values.current || 0;
+            root.psuPower = values.power_meas_w || values.power || 0;
+            root.psuResistance = values.resistance_ohm || values.resistance || 0;
+            root.psuConnected = true;
+        } else if (short_id === "rtb2000") {
+            root.rtbConnected = true;
+            root.rtbCh1Vrms = values.ch1_vrms || 0.0;
+            root.rtbCh1Vpp = values.ch1_vpp || 0.0;
+            root.rtbCh1Freq = values.ch1_freq_hz || values.ch1_freq || 0.0;
+            root.rtbCh2Vrms = values.ch2_vrms || 0.0;
+            root.rtbCh2Vpp = values.ch2_vpp || 0.0;
+            root.rtbCh2Freq = values.ch2_freq_hz || values.ch2_freq || 0.0;
+            if (rtbPanel) rtbPanel.updateReadouts(values);
+        } else if (short_id === "mso2004b") {
+            root.tekConnected = true;
+            root.tekCh1Vrms = values.ch1_vrms || 0.0;
+            root.tekCh1Vpp = values.ch1_vpp || 0.0;
+            root.tekCh1Freq = values.ch1_freq_hz || values.ch1_freq || 0.0;
+            root.tekCh2Vrms = values.ch2_vrms || 0.0;
+            root.tekCh2Vpp = values.ch2_vpp || 0.0;
+            root.tekCh2Freq = values.ch2_freq_hz || values.ch2_freq || 0.0;
+            if (tekPanel) tekPanel.updateReadouts(values);
+        }
+    }
+
     Connections {
         target: instrumentsBridge
         function onInstrumentConnected(shortId) {
-            if (shortId === "labhp_41000") root.psuConnected = true;
-            else if (shortId === "rtb2000") root.rtbConnected = true;
-            else if (shortId === "mso2004b") root.tekConnected = true;
+            root.setConnected(shortId, true);
         }
         function onInstrumentDisconnected(shortId) {
-            if (shortId === "labhp_41000") { root.psuConnected = false; }
-            else if (shortId === "rtb2000") { root.rtbConnected = false; root.rtbRunning = false; }
-            else if (shortId === "mso2004b") { root.tekConnected = false; root.tekRunning = false; }
+            root.setConnected(shortId, false);
         }
         function onTelemetryUpdated(shortId, m) {
-            if (shortId === "labhp_41000") {
-                root.psuV = m.voltage_meas_v || 0.0;
-                root.psuI = m.current_meas_a || 0.0;
-                root.psuP = m.power_meas_w || 0.0;
-                root.psuR = m.resistance_ohm || m.resistance_meas_ohm || 0.0;
-            } else if (shortId === "rtb2000") {
-                root.rtbCh1Vrms = m.ch1_vrms || 0.0;
-                root.rtbCh1Vpp = m.ch1_vpp || 0.0;
-                root.rtbCh1Freq = m.ch1_freq_hz || m.ch1_freq || 0.0;
-                root.rtbCh2Vrms = m.ch2_vrms || 0.0;
-                root.rtbCh2Vpp = m.ch2_vpp || 0.0;
-                root.rtbCh2Freq = m.ch2_freq_hz || m.ch2_freq || 0.0;
-            } else if (shortId === "mso2004b") {
-                root.tekCh1Vrms = m.ch1_vrms || 0.0;
-                root.tekCh1Vpp = m.ch1_vpp || 0.0;
-                root.tekCh1Freq = m.ch1_freq_hz || m.ch1_freq || 0.0;
-                root.tekCh2Vrms = m.ch2_vrms || 0.0;
-                root.tekCh2Vpp = m.ch2_vpp || 0.0;
-                root.tekCh2Freq = m.ch2_freq_hz || m.ch2_freq || 0.0;
-            }
+            root.handleTelemetry(shortId, m);
         }
         function onStatusUpdated(shortId, s) {
             if (shortId === "labhp_41000") {
@@ -88,13 +123,10 @@ Item {
             }
         }
         function onWaveformUpdated(shortId, wf) {
-            var chs = wf.channels || {};
             if (shortId === "rtb2000") {
-                if (chs["CH1"]) root.rtbCh1Data = chs["CH1"];
-                if (chs["CH2"]) root.rtbCh2Data = chs["CH2"];
+                root.updateRtbWaveform(wf);
             } else if (shortId === "mso2004b") {
-                if (chs["CH1"]) root.tekCh1Data = chs["CH1"];
-                if (chs["CH2"]) root.tekCh2Data = chs["CH2"];
+                root.updateTekWaveform(wf);
             }
         }
     }
@@ -120,10 +152,14 @@ Item {
         width: 280
 
         connected: root.psuConnected
-        voltageMeas: root.psuV
-        currentMeas: root.psuI
-        powerMeas: root.psuP
-        resistanceMeas: root.psuR
+        voltage: root.psuVoltage
+        current: root.psuCurrent
+        power: root.psuPower
+        resistance: root.psuResistance
+        voltageMeas: root.psuVoltage
+        currentMeas: root.psuCurrent
+        powerMeas: root.psuPower
+        resistanceMeas: root.psuResistance
         outputOn: root.psuOut
 
         focusedScope: root.focusedScope

@@ -28,12 +28,15 @@ Rectangle {
                 text: "⏵ START"
                 enabled: !sessionBridge.running
                 onClicked: {
-                    var confs = [
-                        {"short_id": "labhp_41000", "interval_s": 0.1},
-                        {"short_id": "rtb2000", "interval_s": 0.1},
-                        {"short_id": "mso2004b", "interval_s": 0.1}
-                    ];
-                    sessionBridge.startSession("", confs);
+                    var specs = [];
+                    if (typeof benchView !== "undefined") {
+                        if (benchView.psuConnected) specs.push({"short_id": "labhp_41000", "interval_s": 0.1});
+                        if (benchView.rtbConnected) specs.push({"short_id": "rtb2000", "interval_s": 0.2});
+                        if (benchView.tekConnected) specs.push({"short_id": "mso2004b", "interval_s": 0.2});
+                    }
+                    if (specs.length > 0) {
+                        sessionBridge.startSession("", specs);
+                    }
                 }
             }
 
@@ -74,7 +77,7 @@ Rectangle {
             }
 
             Text {
-                text: "Clock: " + sessionBridge.clockLabel
+                text: sessionBridge.clockLabel
                 color: Theme.text
                 font.pixelSize: 13
                 font.bold: true
@@ -85,22 +88,13 @@ Rectangle {
 
         Item { width: 1; height: 1; Layout.fillWidth: true }
 
-        // Row Counters (LOGGED: 0 until session runs, then PSU: X  R&S: Y  Tek: Z)
+        // Row Counters
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
 
             Text {
-                text: {
-                    if (!sessionBridge.running) {
-                        return "LOGGED: 0";
-                    }
-                    var counts = sessionBridge.rowCounts;
-                    var psu = counts["labhp_41000"] || 0;
-                    var rtb = counts["rtb2000"] || 0;
-                    var tek = counts["mso2004b"] || 0;
-                    return "PSU: " + psu + "  R&S: " + rtb + "  Tek: " + tek;
-                }
+                text: "LOGGED: " + JSON.stringify(sessionBridge.rowCounts)
                 color: Theme.accent
                 font.pixelSize: 12
                 font.bold: true

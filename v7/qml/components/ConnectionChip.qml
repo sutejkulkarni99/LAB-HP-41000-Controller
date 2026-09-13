@@ -11,6 +11,8 @@ Rectangle {
     property bool connected: false
     property bool showResource: false
 
+    signal clicked()
+
     height: 32
     implicitWidth: chipRow.implicitWidth + 16
     radius: 6
@@ -53,11 +55,7 @@ Rectangle {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         onClicked: {
-            if (root.connected) {
-                instrumentsBridge.disconnectInstrument(root.instrumentId);
-            } else {
-                instrumentsBridge.connectInstrument(root.instrumentId, root.defaultResource);
-            }
+            root.clicked();
         }
     }
 }

@@ -7,10 +7,14 @@ Rectangle {
     id: root
     property string instrumentId: "labhp_41000"
     property bool connected: false
-    property real voltageMeas: 0.0
-    property real currentMeas: 0.0
-    property real powerMeas: 0.0
-    property real resistanceMeas: 0.0
+    property var voltage: undefined
+    property var current: undefined
+    property var power: undefined
+    property var resistance: undefined
+    property real voltageMeas: voltage !== undefined ? Number(voltage) : 0.0
+    property real currentMeas: current !== undefined ? Number(current) : 0.0
+    property real powerMeas: power !== undefined ? Number(power) : 0.0
+    property real resistanceMeas: resistance !== undefined ? Number(resistance) : 0.0
     property bool outputOn: false
 
     // Focus mode properties for the other (shrunk) scope
@@ -94,7 +98,7 @@ Rectangle {
                     width: parent.width
                     height: 58
                     label: "VOLTAGE"
-                    value: root.connected ? root.voltageMeas.toFixed(2) : "--"
+                    value: (root.voltage === undefined || (root.voltage == 0 && !root.connected)) ? "--" : Number(root.voltage !== undefined ? root.voltage : root.voltageMeas).toFixed(2)
                     unit: "V"
                     accentColor: Theme.accent
                 }
@@ -103,7 +107,7 @@ Rectangle {
                     width: parent.width
                     height: 58
                     label: "CURRENT"
-                    value: root.connected ? root.currentMeas.toFixed(3) : "--"
+                    value: (root.current === undefined || (root.current == 0 && !root.connected)) ? "--" : Number(root.current !== undefined ? root.current : root.currentMeas).toFixed(3)
                     unit: "A"
                     accentColor: Theme.warn
                 }
@@ -112,7 +116,7 @@ Rectangle {
                     width: parent.width
                     height: 58
                     label: "POWER"
-                    value: root.connected ? root.powerMeas.toFixed(1) : "--"
+                    value: (root.power === undefined || (root.power == 0 && !root.connected)) ? "--" : Number(root.power !== undefined ? root.power : root.powerMeas).toFixed(1)
                     unit: "W"
                     accentColor: "#A78BFA"
                 }
@@ -121,7 +125,11 @@ Rectangle {
                     width: parent.width
                     height: 58
                     label: "RESISTANCE"
-                    value: root.connected ? ((root.resistanceMeas > 9999) ? "OPEN" : root.resistanceMeas.toFixed(1)) : "--"
+                    value: {
+                        if (root.resistance === undefined || (root.resistance == 0 && !root.connected)) return "--";
+                        var r = Number(root.resistance !== undefined ? root.resistance : root.resistanceMeas);
+                        return (r > 9999) ? "OPEN" : r.toFixed(1);
+                    }
                     unit: "Ω"
                     accentColor: Theme.ok
                 }

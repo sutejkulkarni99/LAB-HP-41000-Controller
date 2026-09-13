@@ -27,6 +27,36 @@ Rectangle {
     signal focusRequested()
     signal inspectorRequested(string instId)
 
+    function format(v, unit) {
+        if (v === undefined || v === null || isNaN(v) || v === "--") return "--";
+        var u = unit ? (" " + unit) : "";
+        return Number(v).toFixed(2) + u;
+    }
+
+    function updateWaveform(wave) {
+        if (scopeScreen) {
+            scopeScreen.updateWaveform(wave);
+        }
+    }
+
+    function updateReadouts(values) {
+        if (!values) return;
+        if (values.timebase) root.timebaseStr = values.timebase;
+        var ch1_rms = values.ch1_vrms !== undefined ? values.ch1_vrms : values.ch1_rms;
+        var ch1_vpp = values.ch1_vpp;
+        var ch1_freq = values.ch1_freq_hz !== undefined ? values.ch1_freq_hz : values.ch1_freq;
+        if (ch1_rms !== undefined && !isNaN(ch1_rms)) root.ch1Vrms = Number(ch1_rms);
+        if (ch1_vpp !== undefined && !isNaN(ch1_vpp)) root.ch1Vpp = Number(ch1_vpp);
+        if (ch1_freq !== undefined && !isNaN(ch1_freq)) root.ch1Freq = Number(ch1_freq);
+
+        var ch2_rms = values.ch2_vrms !== undefined ? values.ch2_vrms : values.ch2_rms;
+        var ch2_vpp = values.ch2_vpp;
+        var ch2_freq = values.ch2_freq_hz !== undefined ? values.ch2_freq_hz : values.ch2_freq;
+        if (ch2_rms !== undefined && !isNaN(ch2_rms)) root.ch2Vrms = Number(ch2_rms);
+        if (ch2_vpp !== undefined && !isNaN(ch2_vpp)) root.ch2Vpp = Number(ch2_vpp);
+        if (ch2_freq !== undefined && !isNaN(ch2_freq)) root.ch2Freq = Number(ch2_freq);
+    }
+
     color: Theme.card
     border.color: root.isFocused ? Theme.accent : Theme.border
     border.width: root.isFocused ? 2 : 1
@@ -115,7 +145,7 @@ Rectangle {
                         enabled: root.connected && !root.running
                         onClicked: {
                             root.running = true;
-                            instrumentsBridge.setScopeControl(root.instrumentId, "RUN", true);
+                            instrumentsBridge.setScopeControl(root.instrumentId, "run", 0);
                         }
                     }
 
@@ -125,7 +155,7 @@ Rectangle {
                         enabled: root.connected && root.running
                         onClicked: {
                             root.running = false;
-                            instrumentsBridge.setScopeControl(root.instrumentId, "RUN", false);
+                            instrumentsBridge.setScopeControl(root.instrumentId, "stop", 0);
                         }
                     }
 
@@ -133,7 +163,18 @@ Rectangle {
                         height: 28
                         text: "SINGLE"
                         enabled: root.connected
-                        onClicked: instrumentsBridge.sendRawCommand(root.instrumentId, ":SINGle")
+                        onClicked: {
+                            instrumentsBridge.setScopeControl(root.instrumentId, "single", 0);
+                        }
+                    }
+
+                    Button {
+                        height: 28
+                        text: "AUTOSET"
+                        enabled: root.connected
+                        onClicked: {
+                            instrumentsBridge.setScopeControl(root.instrumentId, "autoset", 0);
+                        }
                     }
 
                     Button {
@@ -147,6 +188,7 @@ Rectangle {
 
         // Scope Display
         ScopeScreen {
+            id: scopeScreen
             width: parent.width
             height: parent.height - 84
             connected: root.connected
@@ -183,14 +225,14 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
 
                 Text {
-                    text: "CH1: " + (root.connected ? (root.ch1Vrms.toFixed(2) + " Vrms  |  " + root.ch1Vpp.toFixed(2) + " Vpp  |  " + root.ch1Freq.toFixed(1) + " Hz") : "--")
+                    text: "CH1: " + (root.connected ? (root.format(root.ch1Vrms, "Vrms") + "  |  " + root.format(root.ch1Vpp, "Vpp") + "  |  " + root.format(root.ch1Freq, "Hz")) : "--")
                     color: "#FACC15"
                     font.pixelSize: 11
                     font.family: "Monospace"
                 }
 
                 Text {
-                    text: "CH2: " + (root.connected ? (root.ch2Vrms.toFixed(2) + " Vrms  |  " + root.ch2Vpp.toFixed(2) + " Vpp  |  " + root.ch2Freq.toFixed(1) + " Hz") : "--")
+                    text: "CH2: " + (root.connected ? (root.format(root.ch2Vrms, "Vrms") + "  |  " + root.format(root.ch2Vpp, "Vpp") + "  |  " + root.format(root.ch2Freq, "Hz")) : "--")
                     color: "#38BDF8"
                     font.pixelSize: 11
                     font.family: "Monospace"
